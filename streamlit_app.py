@@ -6,11 +6,22 @@ st.set_page_config(page_title="Beckley Hotel Tracker", page_icon="📋")
 st.title("📋 Beckley Hotel Rate Tracker")
 st.write("Monitoring rates for selected Beckley properties.")
 
-# -- Date Picker --
+# -- Smart date logic --
+today = date.today()
+tomorrow = today + timedelta(days=1)
+
+# If today is Thursday, set Friday to next week
+if today.weekday() == 3:  # Thursday
+    friday = today + timedelta(days=8)  # Next Friday
+else:
+    days_until_friday = (4 - today.weekday()) % 7
+    friday = today + timedelta(days=days_until_friday)
+
+# Dropdown options
 date_options = {
-    "Today": date.today(),
-    "Tomorrow": date.today() + timedelta(days=1),
-    "Friday": date.today() + timedelta((4 - date.today().weekday()) % 7)
+    "Today": today,
+    "Tomorrow": tomorrow,
+    "Friday": friday
 }
 selected_label = st.selectbox("Select check-in date:", list(date_options.keys()))
 checkin_date = date_options[selected_label]
