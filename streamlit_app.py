@@ -2,53 +2,67 @@ import streamlit as st
 import pandas as pd
 from datetime import date, timedelta
 
-# Setup
-st.set_page_config(page_title="Beckley Hotel Rate Tracker", page_icon="🏨")
-st.title("🏨 Beckley Hotel Rate Comparison")
-st.write("Comparing your hotel with local competition for upcoming dates.")
+st.set_page_config(page_title="Beckley Competitor Rate Tracker", page_icon="📊")
+st.title("📊 Beckley Competitor Hotel Rate Tracker")
+st.write("Monitoring competitor prices to stay ahead in the Beckley market.")
 
-# Date logic: show check-in date for "This Friday"
-today = date.today()
-days_until_friday = (4 - today.weekday()) % 7  # 0 = Monday, 4 = Friday
-checkin_date = today + timedelta(days=days_until_friday)
+# -- Date Picker (Today, Tomorrow, Friday) --
+date_options = {
+    "Today": date.today(),
+    "Tomorrow": date.today() + timedelta(days=1),
+    "Friday": date.today() + timedelta((4 - date.today().weekday()) % 7)
+}
+selected_label = st.selectbox("Check-in Date:", list(date_options.keys()))
+checkin_date = date_options[selected_label]
 
-# Hotel list (your hotel + competitors)
-your_hotel = "Comfort Inn Beckley"
+# -- Competitor Hotels in Beckley (not owned by VPMGMT) --
 competitors = [
-    "Courtyard Beckley",
-    "Hampton Inn Beckley",
-    "Tru by Hilton Beckley",
-    "Fairfield Inn Beckley",
-    "Best Western Beckley",
-    "Country Inn Beckley"
+    "Comfort Inn Beckley",
+    "Quality Inn Beckley",
+    "Travelodge Beckley",
+    "Super 8 Beckley",
+    "Howard Johnson Beckley",
+    "Baymont Inn Beckley"
 ]
 
-# Fake sample rates (replace with real data later)
-fake_rates = {
-    "Comfort Inn Beckley": 125,
-    "Courtyard Beckley": 139,
-    "Hampton Inn Beckley": 134,
-    "Tru by Hilton Beckley": 121,
-    "Fairfield Inn Beckley": 129,
-    "Best Western Beckley": 119,
-    "Country Inn Beckley": 124,
+# -- Mock Rates by Date (replace with real scraped data later) --
+mock_rates = {
+    "Today": {
+        "Comfort Inn Beckley": 122,
+        "Quality Inn Beckley": 118,
+        "Travelodge Beckley": 109,
+        "Super 8 Beckley": 101,
+        "Howard Johnson Beckley": 105,
+        "Baymont Inn Beckley": 111,
+    },
+    "Tomorrow": {
+        "Comfort Inn Beckley": 124,
+        "Quality Inn Beckley": 119,
+        "Travelodge Beckley": 110,
+        "Super 8 Beckley": 102,
+        "Howard Johnson Beckley": 106,
+        "Baymont Inn Beckley": 112,
+    },
+    "Friday": {
+        "Comfort Inn Beckley": 127,
+        "Quality Inn Beckley": 123,
+        "Travelodge Beckley": 114,
+        "Super 8 Beckley": 105,
+        "Howard Johnson Beckley": 109,
+        "Baymont Inn Beckley": 116,
+    }
 }
 
-# Generate comparison table
-all_hotels = [your_hotel] + competitors
-your_rate = fake_rates[your_hotel]
+rates = mock_rates[selected_label]
 
+# -- Display Table --
 rows = []
-for hotel in all_hotels:
-    rate = fake_rates.get(hotel, 0)
-    delta = rate - your_rate
+for hotel in competitors:
     rows.append({
         "Hotel": hotel,
         "Check-in": checkin_date.strftime("%A, %b %d"),
-        "Rate": f"${rate}",
-        "Δ vs You": "—" if hotel == your_hotel else f"{'+' if delta > 0 else ''}${delta}"
+        "Rate": f"${rates[hotel]}"
     })
 
-df = pd.DataFrame(rows)
-st.subheader(f"📍 Beckley, WV — {checkin_date.strftime('%A (%b %d)')}")
-st.dataframe(df, use_container_width=True)
+st.subheader(f"📍 Competitor Prices in Beckley — {selected_label}")
+st.dataframe(pd.DataFrame(rows), use_container_width=True)
