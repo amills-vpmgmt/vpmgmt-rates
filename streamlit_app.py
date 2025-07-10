@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import requests
 from datetime import date, timedelta
 import math
 
@@ -14,9 +15,8 @@ today = date.today()
 tomorrow = today + timedelta(days=1)
 weekday = today.weekday()
 
-# Handle Friday rollover logic
 if weekday == 3:  # Thursday
-    next_friday = today + timedelta(days=7 - weekday + 4)  # Next Friday
+    next_friday = today + timedelta(days=7 - weekday + 4)
 else:
     next_friday = today + timedelta((4 - weekday) % 7)
 
@@ -30,7 +30,7 @@ selected_label = st.selectbox("Select check-in date:", list(date_options.keys())
 checkin_date = date_options[selected_label]
 
 # -----------------------
-# Hotels (from your sheet)
+# Hotels List
 # -----------------------
 hotels = [
     "Courtyard Beckley",
@@ -39,11 +39,24 @@ hotels = [
     "Fairfield Inn Beckley",
     "Best Western Beckley",
     "Country Inn Beckley",
-    "Comfort Inn Beckley"  # your reference hotel
+    "Comfort Inn Beckley"  # Your reference hotel
 ]
 
 # -----------------------
-# Mock rate data (for testing)
+# Try fetching live data from GitHub
+# -----------------------
+live_rates = {}
+try:
+    json_url = "https://raw.githubusercontent.com/amills-vpmgmt/hotel-rate-scraper/main/data/beckley_rates.json"
+    response = requests.get(json_url)
+    response.raise_for_status()
+    live_rates = response.json()
+    st.success("✅ Live rates loaded from GitHub.")
+except Exception as e:
+    st.warning("⚠️ Could not load live rates — using mock data instead.")
+
+# -----------------------
+# Mock fallback data
 # -----------------------
 mock_rates = {
     "Today": {
@@ -75,16 +88,17 @@ mock_rates = {
     }
 }
 
-rates = mock_rates.get(selected_label, {})
+# Use live or mock data
+rates = live_rates.get(selected_label, {}) if live_rates else mock_rates.get(selected_label, {})
 your_rate = rates.get("Comfort Inn Beckley", 0)
 
 # -----------------------
-# Display Header with Full Date
+# Display Header
 # -----------------------
 st.subheader(f"📍 Beckley, WV — {selected_label} ({checkin_date.strftime('%A, %b %d')})")
 
 # -----------------------
-# Build Comparison Table
+# Build Table
 # -----------------------
 rows = []
 for hotel in hotels:
@@ -99,7 +113,7 @@ for hotel in hotels:
 
 df = pd.DataFrame(rows)
 
-# Interactive table with CSV download
+# Interactive table
 st.dataframe(df, use_container_width=True)
 
 # -----------------------
