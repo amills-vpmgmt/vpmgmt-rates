@@ -2,11 +2,11 @@ import streamlit as st
 import pandas as pd
 from datetime import date, timedelta
 
-st.set_page_config(page_title="Beckley Competitor Rate Tracker", page_icon="📊")
+st.set_page_config(page_title="Beckley Competitor Tracker", page_icon="📊")
 st.title("📊 Beckley Competitor Hotel Rate Tracker")
 st.write("Monitoring competitor prices to stay ahead in the Beckley market.")
 
-# -- Date Picker (Today, Tomorrow, Friday) --
+# -- Check-in date dropdown --
 date_options = {
     "Today": date.today(),
     "Tomorrow": date.today() + timedelta(days=1),
@@ -15,7 +15,7 @@ date_options = {
 selected_label = st.selectbox("Check-in Date:", list(date_options.keys()))
 checkin_date = date_options[selected_label]
 
-# -- Competitor Hotels in Beckley (not owned by VPMGMT) --
+# -- Competitor hotels --
 competitors = [
     "Comfort Inn Beckley",
     "Quality Inn Beckley",
@@ -25,7 +25,7 @@ competitors = [
     "Baymont Inn Beckley"
 ]
 
-# -- Mock Rates by Date (replace with real scraped data later) --
+# -- Mock rate data --
 mock_rates = {
     "Today": {
         "Comfort Inn Beckley": 122,
@@ -55,14 +55,27 @@ mock_rates = {
 
 rates = mock_rates[selected_label]
 
-# -- Display Table --
-rows = []
-for hotel in competitors:
-    rows.append({
-        "Hotel": hotel,
-        "Check-in": checkin_date.strftime("%A, %b %d"),
-        "Rate": f"${rates[hotel]}"
-    })
+# -- Build DataFrame --
+df = pd.DataFrame({
+    "Hotel": list(rates.keys()),
+    "Rate": list(rates.values())
+})
+df["Check-in"] = checkin_date.strftime("%A, %b %d")
+df = df[["Hotel", "Check-in", "Rate"]]
 
-st.subheader(f"📍 Competitor Prices in Beckley — {selected_label}")
-st.dataframe(pd.DataFrame(rows), use_container_width=True)
+# -- Show Table --
+st.subheader(f"📍 Beckley — {selected_label} ({checkin_date.strftime('%b %d')})")
+st.dataframe(df, use_container_width=True)
+
+# -- Show Bar Chart --
+st.subheader("📊 Rate Comparison Chart")
+chart_df = df[["Hotel", "Rate"]].set_index("Hotel")
+st.bar_chart(chart_df)
+
+# -- Alert Summary (Avg vs Each Hotel) --
+st.subheader("💬 Pricing Summary")
+avg_rate = df["Rate"].mean()
+for _, row in df.iterrows():
+    delta = row["Rate"] - avg_rate
+    direction = "above" if delta > 0 else "below" if delta < 0 else "equal to"
+    st.write(f"• {row['Hotel']} is **${abs(delta):.0f} {direction}** the competitor average (${avg_rate:.0f}).")
