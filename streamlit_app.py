@@ -2,79 +2,53 @@ import streamlit as st
 import pandas as pd
 from datetime import date, timedelta
 
-st.set_page_config(page_title="Hotel Rate Tracker", page_icon="🏨")
-st.title("🏨 Hotel Rate Comparison Dashboard")
-st.write("Tracking your hotel's nightly rates against nearby competitors.")
+# Setup
+st.set_page_config(page_title="Beckley Hotel Rate Tracker", page_icon="🏨")
+st.title("🏨 Beckley Hotel Rate Comparison")
+st.write("Comparing your hotel with local competition for upcoming dates.")
 
-# Define check-in date logic
-checkin_date = date.today() + timedelta(days=3)
+# Date logic: show check-in date for "This Friday"
+today = date.today()
+days_until_friday = (4 - today.weekday()) % 7  # 0 = Monday, 4 = Friday
+checkin_date = today + timedelta(days=days_until_friday)
 
-# Define hotel groups per region
-hotels_by_region = {
-    "Beckley, WV": {
-        "your_hotel": "Comfort Inn Beckley",
-        "competitors": [
-            "Hampton Inn Beckley",
-            "Tru by Hilton Beckley",
-            "Microtel Inn Beckley"
-        ]
-    },
-    "Princeton, WV": {
-        "your_hotel": "Quality Inn Princeton",
-        "competitors": [
-            "Microtel Inn Princeton",
-            "Hampton Inn Princeton",
-            "Sleep Inn & Suites Princeton"
-        ]
-    },
-    "Bluefield, WV": {
-        "your_hotel": "Quality Inn Bluefield",
-        "competitors": [
-            "Comfort Inn Bluefield",
-            "Econo Lodge Near Bluefield College",
-            "Budget Inn Bluefield"
-        ]
-    }
-}
+# Hotel list (your hotel + competitors)
+your_hotel = "Comfort Inn Beckley"
+competitors = [
+    "Courtyard Beckley",
+    "Hampton Inn Beckley",
+    "Tru by Hilton Beckley",
+    "Fairfield Inn Beckley",
+    "Best Western Beckley",
+    "Country Inn Beckley"
+]
 
-# Select region
-region = st.selectbox("Select region:", list(hotels_by_region.keys()))
-region_hotels = hotels_by_region[region]
-your_hotel = region_hotels["your_hotel"]
-competitors = region_hotels["competitors"]
-
-# Placeholder: Fake rates for now
+# Fake sample rates (replace with real data later)
 fake_rates = {
     "Comfort Inn Beckley": 125,
-    "Hampton Inn Beckley": 132,
-    "Tru by Hilton Beckley": 118,
-    "Microtel Inn Beckley": 121,
-    "Quality Inn Princeton": 109,
-    "Microtel Inn Princeton": 115,
-    "Hampton Inn Princeton": 124,
-    "Sleep Inn & Suites Princeton": 113,
-    "Quality Inn Bluefield": 105,
-    "Comfort Inn Bluefield": 112,
-    "Econo Lodge Near Bluefield College": 99,
-    "Budget Inn Bluefield": 91,
+    "Courtyard Beckley": 139,
+    "Hampton Inn Beckley": 134,
+    "Tru by Hilton Beckley": 121,
+    "Fairfield Inn Beckley": 129,
+    "Best Western Beckley": 119,
+    "Country Inn Beckley": 124,
 }
 
-# Build table
+# Generate comparison table
 all_hotels = [your_hotel] + competitors
-your_rate = fake_rates.get(your_hotel, 0)
-table_data = []
+your_rate = fake_rates[your_hotel]
 
+rows = []
 for hotel in all_hotels:
     rate = fake_rates.get(hotel, 0)
     delta = rate - your_rate
-    table_data.append({
-        "Hotel Name": hotel,
-        "Check-in": checkin_date.strftime("%b %d"),
-        "Rate ($)": rate,
+    rows.append({
+        "Hotel": hotel,
+        "Check-in": checkin_date.strftime("%A, %b %d"),
+        "Rate": f"${rate}",
         "Δ vs You": "—" if hotel == your_hotel else f"{'+' if delta > 0 else ''}${delta}"
     })
 
-st.subheader(f"📍 {region} - Check-in {checkin_date.strftime('%A, %B %d')}")
-st.dataframe(pd.DataFrame(table_data), use_container_width=True)
-
-
+df = pd.DataFrame(rows)
+st.subheader(f"📍 Beckley, WV — {checkin_date.strftime('%A (%b %d)')}")
+st.dataframe(df, use_container_width=True)
