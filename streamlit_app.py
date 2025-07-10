@@ -16,7 +16,7 @@ weekday = today.weekday()
 if weekday == 3:  # Thursday
     next_friday = today + timedelta(days=7 - weekday + 4)  # Skip to next Friday
 else:
-    next_friday = today + timedelta((4 - weekday) % 7)
+    next_friday = today + timedelta((4 - weekday) % 7) #current friday if it isnt thursday
 
 date_options = {
     "Today": today,
