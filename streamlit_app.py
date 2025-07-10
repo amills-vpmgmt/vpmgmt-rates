@@ -7,27 +7,31 @@ st.set_page_config(page_title="Beckley Competitor Rate Tracker", page_icon="📝
 st.title("📝 Beckley Hotel Rate Tracker")
 st.write("Monitoring rates for selected Beckley properties.")
 
-# Date Picker Options
+# -----------------------
+# Date Picker with Friday Fix
+# -----------------------
 today = date.today()
 tomorrow = today + timedelta(days=1)
 weekday = today.weekday()
 
-# Special Friday logic
+# Handle Friday rollover logic
 if weekday == 3:  # Thursday
-    next_friday = today + timedelta(days=7 - weekday + 4)  # Skip to next Friday
+    next_friday = today + timedelta(days=7 - weekday + 4)  # Next Friday
 else:
-    next_friday = today + timedelta((4 - weekday) % 7) #current friday if it isnt thursday
+    next_friday = today + timedelta((4 - weekday) % 7)
 
 date_options = {
     "Today": today,
-    "Tomorrow": tomorrow if not (weekday == 3) else today + timedelta(days=2),
+    "Tomorrow": tomorrow if weekday != 3 else today + timedelta(days=2),
     "Friday": next_friday
 }
 
 selected_label = st.selectbox("Select check-in date:", list(date_options.keys()))
 checkin_date = date_options[selected_label]
 
-# Competitor hotels (from your sheet)
+# -----------------------
+# Hotels (from your sheet)
+# -----------------------
 hotels = [
     "Courtyard Beckley",
     "Hampton Inn Beckley",
@@ -35,10 +39,12 @@ hotels = [
     "Fairfield Inn Beckley",
     "Best Western Beckley",
     "Country Inn Beckley",
-    "Comfort Inn Beckley"  # Your hotel (for baseline)
+    "Comfort Inn Beckley"  # your reference hotel
 ]
 
-# Example mock pricing (replace with real scraped/API data)
+# -----------------------
+# Mock rate data (for testing)
+# -----------------------
 mock_rates = {
     "Today": {
         "Courtyard Beckley": 142,
@@ -72,10 +78,14 @@ mock_rates = {
 rates = mock_rates.get(selected_label, {})
 your_rate = rates.get("Comfort Inn Beckley", 0)
 
-# Display Header with Date
+# -----------------------
+# Display Header with Full Date
+# -----------------------
 st.subheader(f"📍 Beckley, WV — {selected_label} ({checkin_date.strftime('%A, %b %d')})")
 
-# Build comparison table
+# -----------------------
+# Build Comparison Table
+# -----------------------
 rows = []
 for hotel in hotels:
     rate = rates.get(hotel, "N/A")
@@ -87,9 +97,14 @@ for hotel in hotels:
         "Δ vs You": delta
     })
 
-st.table(pd.DataFrame(rows))
+df = pd.DataFrame(rows)
 
-# Optional bar chart
+# Interactive table with CSV download
+st.dataframe(df, use_container_width=True)
+
+# -----------------------
+# Optional Bar Chart
+# -----------------------
 st.subheader("📊 Rate Comparison Chart")
 chart_df = pd.DataFrame({
     "Hotel": hotels,
