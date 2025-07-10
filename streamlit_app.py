@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import date, timedelta
 
 st.set_page_config(page_title="Beckley Competitor Tracker", page_icon="📊")
-st.title("📊 Beckley Competitor Hotel Rate Tracker")
+st.title("📊 Competitor Hotel Rate Tracker")
 st.write("Monitoring competitor prices to stay ahead in the Beckley market.")
 
 # -- Check-in date dropdown --
