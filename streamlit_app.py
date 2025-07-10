@@ -57,16 +57,30 @@ mock_rates = {
     }
 }
 
+# -- Build Table --
 rates = mock_rates[selected_label]
-df = pd.DataFrame({
-    "Hotel": hotels,
-    "Check-in": checkin_date.strftime("%A, %b %d"),
-    "Rate": [rates[hotel] for hotel in hotels]
-})
+your_rate = rates["Comfort Inn Beckley"]
 
+data = []
+for hotel in hotels:
+    rate = rates[hotel]
+    delta = "—" if hotel == "Comfort Inn Beckley" else f"{rate - your_rate:+}"
+    data.append({
+        "Hotel": hotel,
+        "Check-in": checkin_date.strftime("%A, %b %d"),
+        "Rate": f"${rate}",
+        "Δ vs You": delta
+    })
+
+df = pd.DataFrame(data)
+
+# -- Show Table --
 st.subheader(f"📍 Beckley, WV — {selected_label} ({checkin_date.strftime('%b %d')})")
 st.dataframe(df, use_container_width=True)
 
+# -- Show Chart --
 st.subheader("📊 Rate Comparison Chart")
-chart_df = df[["Hotel", "Rate"]].set_index("Hotel")
+chart_df = df[["Hotel", "Rate"]].copy()
+chart_df["Rate"] = chart_df["Rate"].replace({'\$': ''}, regex=True).astype(float)
+chart_df.set_index("Hotel", inplace=True)
 st.bar_chart(chart_df)
