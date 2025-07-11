@@ -1,16 +1,19 @@
 import streamlit as st
 import pandas as pd
 import requests
-from datetime import date, timedelta
+from datetime import datetime, timedelta
+import pytz
 
 st.set_page_config(page_title="Beckley Competitor Rate Tracker", page_icon="📝")
 st.title("📝 Beckley Hotel Rate Tracker")
 st.write("Monitoring rates for selected Beckley properties.")
 
 # -----------------------
-# Date Picker with Friday Fix (with Thursday Rule)
+# Timezone-Aware Date (Eastern Time)
 # -----------------------
-today = date.today()
+eastern = pytz.timezone("US/Eastern")
+today_dt = datetime.now(eastern)
+today = today_dt.date()
 tomorrow = today + timedelta(days=1)
 weekday = today.weekday()  # Monday = 0, Thursday = 3, Friday = 4, Sunday = 6
 
