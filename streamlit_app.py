@@ -1,28 +1,28 @@
 import streamlit as st
 import pandas as pd
+from datetime import date, timedelta, datetime
+import json
 import requests
-from datetime import datetime, timedelta
-import pytz
 
 st.set_page_config(page_title="Beckley Competitor Rate Tracker", page_icon="📝")
 st.title("📝 Beckley Hotel Rate Tracker")
 st.write("Monitoring rates for selected Beckley properties.")
 
 # -----------------------
-# Timezone-Aware Date (Eastern Time)
+# Date Picker with Correct Friday Logic
 # -----------------------
-eastern = pytz.timezone("US/Eastern")
-today_dt = datetime.now(eastern)
-today = today_dt.date()
-tomorrow = today + timedelta(days=1)
-weekday = today.weekday()  # Monday = 0, Thursday = 3, Friday = 4, Sunday = 6
+today = date.today()
+weekday = today.weekday()  # Monday = 0 ... Sunday = 6
 
-# Determine proper Friday
-if weekday == 3:  # Thursday → Friday = tomorrow
-    next_friday = today + timedelta(days=1)
-elif weekday < 4:  # Mon–Wed → Friday = this week
+# Handle Friday date logic
+if weekday == 3:  # Thursday
+    tomorrow = today + timedelta(days=1)          # This Friday
+    next_friday = today + timedelta(days=8)       # Next Friday
+elif weekday < 4:  # Monday to Wednesday
+    tomorrow = today + timedelta(days=1)
     next_friday = today + timedelta(days=(4 - weekday))
-else:  # Fri–Sun → Friday = next week
+else:  # Friday to Sunday
+    tomorrow = today + timedelta(days=1)
     next_friday = today + timedelta(days=(7 - weekday + 4))
 
 date_options = {
@@ -35,7 +35,7 @@ selected_label = st.selectbox("Select check-in date:", list(date_options.keys())
 checkin_date = date_options[selected_label]
 
 # -----------------------
-# Hotels List
+# Hotels (your properties)
 # -----------------------
 hotels = [
     "Courtyard Beckley",
@@ -48,19 +48,23 @@ hotels = [
 ]
 
 # -----------------------
-# Load rates from GitHub
+# Load Rates from GitHub JSON (live)
 # -----------------------
-DATA_URL = "https://raw.githubusercontent.com/amills-vpmgmt/hotel-rate-scraper/main/data/beckley_rates.json"
+json_url = "https://raw.githubusercontent.com/amills-vpmgmt/hotel-rate-scraper/main/data/beckley_rates.json"
 
 try:
-    response = requests.get(DATA_URL)
+    response = requests.get(json_url)
     response.raise_for_status()
     data = response.json()
+
     rates = data["rates_by_day"].get(selected_label, {})
+    your_rate = rates.get("Comfort Inn Beckley", 0)
     st.success("✅ Live rates loaded from GitHub.")
+
 except Exception as e:
-    st.error("❌ Could not load live rate data.")
+    st.error(f"⚠️ Failed to load live data. Showing blank rates.\n\n{e}")
     rates = {}
+    your_rate = 0
 
 # -----------------------
 # Display Header
@@ -68,11 +72,9 @@ except Exception as e:
 st.subheader(f"📍 Beckley, WV — {selected_label} ({checkin_date.strftime('%A, %b %d')})")
 
 # -----------------------
-# Build Table
+# Build Rate Comparison Table
 # -----------------------
-your_rate = rates.get("Comfort Inn Beckley", 0)
 rows = []
-
 for hotel in hotels:
     rate = rates.get(hotel, "N/A")
     delta = "—" if hotel == "Comfort Inn Beckley" else f"{rate - your_rate:+}" if isinstance(rate, int) else "N/A"
@@ -84,10 +86,12 @@ for hotel in hotels:
     })
 
 df = pd.DataFrame(rows)
+
+# Show interactive table
 st.dataframe(df, use_container_width=True)
 
 # -----------------------
-# Bar Chart
+# Optional Bar Chart
 # -----------------------
 st.subheader("📊 Rate Comparison Chart")
 chart_df = pd.DataFrame({
