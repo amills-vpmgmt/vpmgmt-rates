@@ -1,1 +1,40 @@
+properties:
+  - id: 1
+    name: Comfort Inn Beckley
+    city: Beckley
+    state: WV
+    timezone: America/New_York
+    is_mine: true
+    # brand_booking_url: "https://www.choicehotels.com/.../search"   # optional
+  - id: 2
+    name: Courtyard Beckley
+    city: Beckley
+    state: WV
+    timezone: America/New_York
+    # brand_booking_url: ""
+  - id: 3
+    name: Hampton Inn Beckley
+    city: Beckley
+    state: WV
+    timezone: America/New_York
+  - id: 4
+    name: Tru by Hilton Beckley
+    city: Beckley
+    state: WV
+    timezone: America/New_York
+  - id: 5
+    name: Fairfield Inn Beckley
+    city: Beckley
+    state: WV
+    timezone: America/New_York
+  - id: 6
+    name: Best Western Beckley
+    city: Beckley
+    state: WV
+    timezone: America/New_York
+  - id: 7
+    name: Country Inn Beckley
+    city: Beckley
+    state: WV
+    timezone: America/New_York
 
