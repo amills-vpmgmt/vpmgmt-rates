@@ -1,9 +1,9 @@
-# .github/workflows/nightly.yml
 name: nightly
 on:
   schedule:
-    - cron: "7 4 * * *"
+    - cron: "7 4 * * *"   # 04:07 UTC daily
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,7 +21,7 @@ jobs:
         run: python -m app.run_jobs
       - name: Commit data
         run: |
-          git config user.name "ratebot"
+          git config user.name "RateBot"
           git config user.email "ratebot@users.noreply.github.com"
           git add data/
           git commit -m "data: nightly $(date -u +%F)" || echo "no changes"
