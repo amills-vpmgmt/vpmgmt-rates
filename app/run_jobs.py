@@ -2,22 +2,45 @@ from pathlib import Path
 from datetime import datetime, timezone, date, timedelta
 import json
 import os
+import yaml
 
 from app.fetchers.serpapi_google import fetch_min_rate_for_hotel
+from app.fetchers.brand_playwright import fetch_brand_total, nightly_from_total
 
 DATA = Path("data/beckley_rates.json")
+CONFIG = Path("config/properties.yml")
 
-# Hotels (exact names work best; you can tune queries later)
+# --- load hotel list + optional brand URLs from config ---
+def _load_hotels():
+    hotels = []
+    brand_urls = {}
+    if CONFIG.exists():
+        cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+        for p in cfg.get("properties", []):
+            name = p.get("name")
+            if not name:
+                continue
+            hotels.append(name)
+            url = p.get("brand_booking_url")  # optional; add in config when ready
+            if url:
+                brand_urls[name] = url
+    else:
+        # fallback list
+        hotels = [
+            "Courtyard Beckley",
+            "Hampton Inn Beckley",
+            "Tru by Hilton Beckley",
+            "Fairfield Inn Beckley",
+            "Best Western Beckley",
+            "Country Inn Beckley",
+            "Comfort Inn Beckley",
+        ]
+    return hotels, brand_urls
+
 YOUR = "Comfort Inn Beckley"
-COMPETITORS = [
-    "Courtyard Beckley",
-    "Hampton Inn Beckley",
-    "Tru by Hilton Beckley",
-    "Fairfield Inn Beckley",
-    "Best Western Beckley",
-    "Country Inn Beckley",
-]
-ALL = COMPETITORS + [YOUR]
+ALL_HOTELS, BRAND_URLS = _load_hotels()
+if YOUR not in ALL_HOTELS:
+    ALL_HOTELS.append(YOUR)
 
 def _next_friday(today: date) -> date:
     weekday = today.weekday()
@@ -34,32 +57,41 @@ def _label_dates(today: date) -> dict[str, date]:
     }
 
 def _query_for(hotel_name: str) -> str:
-    # Adding city/state in query improves precision
+    # adding city/state helps precision
     return f"{hotel_name}, Beckley, WV"
 
 def fetch_day_rates(checkin: date) -> dict[str, int | str]:
     day_rates: dict[str, int | str] = {}
-    for hotel in ALL:
-        try:
-            price = fetch_min_rate_for_hotel(_query_for(hotel), checkin, nights=1, adults=2)
-            day_rates[hotel] = price if price is not None else "N/A"
-        except Exception as e:
-            # Don’t crash the whole run if one hotel fails
-            day_rates[hotel] = "N/A"
-            print(f"[WARN] {hotel} {checkin.isoformat()}: {e}")
+    for hotel in ALL_HOTELS:
+        price: int | None = None
+
+        # 1) Try brand site (if configured)
+        brand_url = BRAND_URLS.get(hotel)
+        if brand_url:
+            try:
+                total = fetch_brand_total(brand_url, checkin, nights=1, adults=2)
+                if total:
+                    price = nightly_from_total(total, nights=1)
+            except Exception as e:
+                print(f"[brand fail] {hotel} {checkin}: {e}")
+
+        # 2) Fallback to SerpAPI Google Hotels
+        if price is None:
+            try:
+                price = fetch_min_rate_for_hotel(_query_for(hotel), checkin, nights=1, adults=2)
+            except Exception as e:
+                print(f"[serpapi fail] {hotel} {checkin}: {e}")
+
+        day_rates[hotel] = max(int(price), 0) if isinstance(price, int) else "N/A"
     return day_rates
 
 def main():
-    # SERPAPI_KEY must be set either locally or in GitHub Actions secrets
     if not os.getenv("SERPAPI_KEY"):
-        print("WARNING: SERPAPI_KEY not set. Run will probably fail to fetch live rates.")
+        print("WARNING: SERPAPI_KEY not set; SerpAPI fetch will fail.")
 
     today = date.today()
     labels = _label_dates(today)
-
-    rates_by_day = {}
-    for label, d in labels.items():
-        rates_by_day[label] = fetch_day_rates(d)
+    rates_by_day = {label: fetch_day_rates(d) for label, d in labels.items()}
 
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
