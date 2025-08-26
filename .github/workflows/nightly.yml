@@ -1,3 +1,4 @@
+# .github/workflows/nightly.yml
 name: nightly
 on:
   schedule:
@@ -16,8 +17,8 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Run jobs (generate JSON)
         env:
-          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}   # <-- add this
-        run: python app/run_jobs.py
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+        run: python -m app.run_jobs
       - name: Commit data
         run: |
           git config user.name "ratebot"
