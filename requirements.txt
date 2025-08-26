@@ -4,3 +4,4 @@ pytz
 pyyaml
 python-dateutil
 httpx
+playwright
