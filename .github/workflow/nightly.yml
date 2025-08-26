@@ -1,1 +1,24 @@
 
+---
+
+## ── CONFIG FILES
+
+### `config/properties.yml`
+```yaml
+properties:
+  - id: 1
+    name: Comfort Inn Beckley
+    city: Beckley
+    state: WV
+    timezone: America/New_York
+    is_mine: true
+compsets:
+  - property_id: 1
+    competitors:
+      - Courtyard Beckley
+      - Hampton Inn Beckley
+      - Tru by Hilton Beckley
+      - Fairfield Inn Beckley
+      - Best Western Beckley
+      - Country Inn Beckley
+
