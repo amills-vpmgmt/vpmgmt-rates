@@ -7,7 +7,7 @@ from pathlib import Path
 import httpx
 
 SERPAPI_KEY = os.getenv("SERPAPI_KEY")
-RAW_DIR = Path("data/raw")  # we’ll save raw responses for audit
+RAW_DIR = Path("data/raw")  # raw evidence for debugging/audits
 
 def _to_iso(d: date) -> str:
     return d.isoformat()
@@ -15,7 +15,7 @@ def _to_iso(d: date) -> str:
 def _clean_price(val) -> int | None:
     """
     Accepts '$129', 'USD 129', 129, '129 per night', '129.00', etc.
-    Returns integer dollars or None.
+    Returns integer dollars within a sane nightly range, else None.
     """
     if val is None:
         return None
@@ -27,21 +27,19 @@ def _clean_price(val) -> int | None:
         if not m:
             return None
         p = int(m.group(1).replace(",", ""))
-    # sanity guard
-    if 40 <= p <= 600:
-        return p
-    return None
+    return p if 40 <= p <= 600 else None  # guardrails for Beckley-type markets
 
 def _norm(text: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
+    return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
 
 def _name_score(a: str, b: str) -> float:
     return SequenceMatcher(None, _norm(a), _norm(b)).ratio()
 
+def _addr_ok(prop: dict, must_include: str = "beckley") -> bool:
+    addr = (prop.get("formatted_address") or prop.get("address") or "").lower()
+    return must_include in addr
+
 def _best_property_for_name(hotels: list[dict], target_name: str, min_score: float = 0.72):
-    """
-    Choose the single property matching target_name using fuzzy string match.
-    """
     best = None
     best_score = 0.0
     for p in hotels:
@@ -53,13 +51,14 @@ def _best_property_for_name(hotels: list[dict], target_name: str, min_score: flo
 
 def _extract_prices_from_property(p: dict) -> list[int]:
     vals: list[int] = []
-    # direct fields
+
+    # direct fields commonly present
     for k in ("rate_per_night", "price", "rate_per_night_low", "rate_per_night_high"):
         v = _clean_price(p.get(k))
         if v is not None:
             vals.append(v)
 
-    # nested lists like p["prices"]
+    # nested prices list
     prices = p.get("prices")
     if isinstance(prices, list):
         for pr in prices:
@@ -69,17 +68,16 @@ def _extract_prices_from_property(p: dict) -> list[int]:
                     if v is not None:
                         vals.append(v)
 
-    # last resort: scan known string containers
-    for k in ("description", "snippet", "extracted_price"):
+    # light scan of a few string fields (avoid over-parsing the whole object)
+    for k in ("description", "snippet"):
         v = _clean_price(p.get(k))
         if v is not None:
             vals.append(v)
 
-    # keep unique, sorted (min nightly price first)
     return sorted(set(vals))
 
 def fetch_min_rate_for_hotel(
-    hotel_query: str,              # ex: "Comfort Inn Beckley, WV"
+    hotel_query: str,              # e.g., "Comfort Inn Beckley, WV"
     checkin: date,
     nights: int = 1,
     adults: int = 2,
@@ -88,7 +86,7 @@ def fetch_min_rate_for_hotel(
     currency: str = "USD",
 ) -> int | None:
     """
-    Returns the MIN nightly price (int USD) for the specific hotel, or None.
+    Return the MIN nightly price (int USD) for the specific hotel, or None.
     """
     if not SERPAPI_KEY:
         raise RuntimeError("SERPAPI_KEY not set. Add it as an env var/secret.")
@@ -111,7 +109,7 @@ def fetch_min_rate_for_hotel(
         r.raise_for_status()
         data = r.json()
 
-    # Save raw once per run for debugging
+    # Save raw response for audit/debug
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     raw_name = f"{_norm(hotel_query)}_{_to_iso(checkin)}.json"
     (RAW_DIR / raw_name).write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -120,10 +118,10 @@ def fetch_min_rate_for_hotel(
     if not isinstance(hotels, list) or not hotels:
         return None
 
-    # Find the best matching property by name
+    # choose best-matching property by name; require address to include Beckley
     target_name = hotel_query.split(",")[0].strip()
     prop, score = _best_property_for_name(hotels, target_name)
-    if not prop:
+    if not prop or not _addr_ok(prop):
         return None
 
     prices = _extract_prices_from_property(prop)
