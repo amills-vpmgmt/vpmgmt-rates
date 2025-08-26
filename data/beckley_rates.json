@@ -1,1 +1,23 @@
+{
+  "rates_by_day": {
+    "Today": {
+      "Comfort Inn Beckley": 129,
+      "Courtyard Beckley": 139,
+      "Hampton Inn Beckley": 149,
+      "Tru by Hilton Beckley": 144,
+      "Fairfield Inn Beckley": 135,
+      "Best Western Beckley": 119,
+      "Country Inn Beckley": 125
+    },
+    "Tomorrow": {
+      "Comfort Inn Beckley": 131,
+      "Courtyard Beckley": 141,
+      "Hampton Inn Beckley": 147,
+      "Tru by Hilton Beckley": 140,
+      "Fairfield Inn Beckley": 136,
+      "Best Western Beckley": 118,
+      "Country Inn Beckley": 126
+    }
+  }
+}
 
