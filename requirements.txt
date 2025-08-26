@@ -1,4 +1,6 @@
 streamlit
 pandas
-requests
 pytz
+pyyaml
+python-dateutil
+httpx
