@@ -1,1 +1,26 @@
+name: nightly
+on:
+  schedule:
+    - cron: "7 4 * * *"   # every day at 04:07 UTC
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Run jobs (generate JSON)
+        run: python app/run_jobs.py
+      - name: Commit data
+        run: |
+          git config user.name "ratebot"
+          git config user.email "ratebot@users.noreply.github.com"
+          git add data/
+          git commit -m "data: nightly $(date -u +%F)" || echo "no changes"
+          git push
 
