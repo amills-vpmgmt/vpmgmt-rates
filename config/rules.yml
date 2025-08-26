@@ -1,1 +1,9 @@
+defaults:
+  occupancy: {adults: 2, children: 0}
+  rate_plan: bar
+  policy: flex
+alerts:
+  undercut_threshold: 5        # dollars
+  parity_percent: 0.03         # 3%
+  no_data_days: 1
 
