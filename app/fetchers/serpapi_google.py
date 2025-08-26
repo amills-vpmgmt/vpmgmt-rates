@@ -1,21 +1,19 @@
 import os
 import re
-import json
 from datetime import date, timedelta
 from difflib import SequenceMatcher
-from pathlib import Path
+from typing import Optional, Dict, Any, List
 import httpx
 
 SERPAPI_KEY = os.getenv("SERPAPI_KEY")
-RAW_DIR = Path("data/raw")  # we’ll save raw responses for audit
 
-def _to_iso(d: date) -> str:
+def _iso(d: date) -> str:
     return d.isoformat()
 
-def _clean_price(val) -> int | None:
+def _clean_price(val) -> Optional[int]:
     """
     Accepts '$129', 'USD 129', 129, '129 per night', '129.00', etc.
-    Returns integer dollars or None.
+    Returns integer dollars within a sane nightly range, else None.
     """
     if val is None:
         return None
@@ -27,104 +25,93 @@ def _clean_price(val) -> int | None:
         if not m:
             return None
         p = int(m.group(1).replace(",", ""))
-    # sanity guard
-    if 40 <= p <= 600:
-        return p
-    return None
+    # Guardrail for nightly rates in this market; tweak if needed later
+    return p if 40 <= p <= 600 else None
 
 def _norm(text: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
+    return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
 
 def _name_score(a: str, b: str) -> float:
     return SequenceMatcher(None, _norm(a), _norm(b)).ratio()
 
-def _best_property_for_name(hotels: list[dict], target_name: str, min_score: float = 0.72):
+def _addr_ok(addr: str, city: str) -> bool:
     """
-    Choose the single property matching target_name using fuzzy string match.
+    Ensure result address mentions the expected city (e.g., 'beckley').
     """
-    best = None
-    best_score = 0.0
-    for p in hotels:
-        name = p.get("name") or p.get("title") or ""
-        score = _name_score(name, target_name)
-        if score > best_score:
-            best, best_score = p, score
-    return (best, best_score) if best_score >= min_score else (None, 0.0)
+    return city.lower() in (addr or "").lower()
 
-def _extract_prices_from_property(p: dict) -> list[int]:
-    vals: list[int] = []
-    # direct fields
+def _extract_price_candidates(p: Dict[str, Any]) -> List[int]:
+    vals: List[int] = []
     for k in ("rate_per_night", "price", "rate_per_night_low", "rate_per_night_high"):
         v = _clean_price(p.get(k))
         if v is not None:
             vals.append(v)
-
-    # nested lists like p["prices"]
     prices = p.get("prices")
     if isinstance(prices, list):
         for pr in prices:
             if isinstance(pr, dict):
-                for k in ("rate_per_night", "price"):
-                    v = _clean_price(pr.get(k))
-                    if v is not None:
-                        vals.append(v)
-
-    # last resort: scan known string containers
-    for k in ("description", "snippet", "extracted_price"):
-        v = _clean_price(p.get(k))
-        if v is not None:
-            vals.append(v)
-
-    # keep unique, sorted (min nightly price first)
+                v = _clean_price(pr.get("rate_per_night") or pr.get("price"))
+                if v is not None:
+                    vals.append(v)
     return sorted(set(vals))
 
 def fetch_min_rate_for_hotel(
-    hotel_query: str,              # ex: "Comfort Inn Beckley, WV"
+    hotel_name: str,
+    address: str,
+    city: str,
     checkin: date,
     nights: int = 1,
     adults: int = 2,
     gl: str = "us",
     hl: str = "en",
     currency: str = "USD",
-) -> int | None:
+    timeout_s: float = 25.0,
+) -> Optional[int]:
     """
-    Returns the MIN nightly price (int USD) for the specific hotel, or None.
+    Returns MIN nightly price (int USD) for the specific hotel, or None.
+    Uses precise query (brand + full address) and validates address & name.
     """
     if not SERPAPI_KEY:
-        raise RuntimeError("SERPAPI_KEY not set. Add it as an env var/secret.")
+        raise RuntimeError("SERPAPI_KEY not set (GitHub secret or local env var).")
 
     checkout = checkin + timedelta(days=nights)
     params = {
         "engine": "google_hotels",
-        "q": hotel_query,
-        "check_in_date": _to_iso(checkin),
-        "check_out_date": _to_iso(checkout),
+        "q": f"{hotel_name}, {address}",
+        "check_in_date": _iso(checkin),
+        "check_out_date": _iso(checkout),
         "adults": adults,
+        "currency": currency,
         "gl": gl,
         "hl": hl,
-        "currency": currency,
         "api_key": SERPAPI_KEY,
     }
 
-    with httpx.Client(timeout=httpx.Timeout(25, read=25, write=15, connect=10)) as client:
+    with httpx.Client(timeout=httpx.Timeout(timeout_s, read=timeout_s, write=timeout_s/2, connect=10)) as client:
         r = client.get("https://serpapi.com/search.json", params=params)
         r.raise_for_status()
         data = r.json()
 
-    # Save raw once per run for debugging
-    RAW_DIR.mkdir(parents=True, exist_ok=True)
-    raw_name = f"{_norm(hotel_query)}_{_to_iso(checkin)}.json"
-    (RAW_DIR / raw_name).write_text(json.dumps(data, indent=2), encoding="utf-8")
-
-    hotels = data.get("properties") or data.get("hotel_results") or []
-    if not isinstance(hotels, list) or not hotels:
+    props = data.get("properties") or []
+    if not isinstance(props, list) or not props:
         return None
 
-    # Find the best matching property by name
-    target_name = hotel_query.split(",")[0].strip()
-    prop, score = _best_property_for_name(hotels, target_name)
-    if not prop:
+    # pick best by fuzzy name, then require address includes city
+    best = None
+    best_score = 0.0
+    for p in props:
+        name = (p.get("name") or p.get("title") or "").strip()
+        score = _name_score(name, hotel_name)
+        if score > best_score:
+            best = p
+            best_score = score
+
+    if not best:
         return None
 
-    prices = _extract_prices_from_property(prop)
-    return prices[0] if prices else None
+    addr = (best.get("formatted_address") or best.get("address") or "")
+    if not _addr_ok(addr, city):
+        return None
+
+    candidates = _extract_price_candidates(best)
+    return candidates[0] if candidates else None
