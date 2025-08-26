@@ -1,36 +1,25 @@
-# dashboard/streamlit_app.py
 import streamlit as st
 import pandas as pd
 from datetime import timedelta, datetime
 from pathlib import Path
 import json
 import pytz
-import hashlib
 
-# -----------------------
-# App / Page config
-# -----------------------
 st.set_page_config(page_title="Beckley Competitor Rate Tracker", page_icon="📝")
 st.title("📝 Beckley Hotel Rate Tracker")
 st.write("Monitoring rates for selected Beckley properties.")
 
-# -----------------------
-# Resolve repo root + data path robustly
-# -----------------------
-APP_DIR = Path(__file__).resolve().parent         # .../dashboard
-REPO_ROOT = APP_DIR.parent                        # repo root
+APP_DIR = Path(__file__).resolve().parent
+REPO_ROOT = APP_DIR.parent
 DATA_PATH = (REPO_ROOT / "data" / "beckley_rates.json").resolve()
 YOUR_HOTEL = "Comfort Inn Beckley"
 
-# -----------------------
-# Timezone-aware dates
-# -----------------------
 eastern = pytz.timezone("US/Eastern")
 today = datetime.now(eastern).date()
 tomorrow = today + timedelta(days=1)
 weekday = today.weekday()
 
-if weekday == 3:  # Thursday -> skip to next week's Friday
+if weekday == 3:
     next_friday = today + timedelta(days=8)
 else:
     days_until_friday = (4 - weekday) % 7
@@ -39,9 +28,6 @@ else:
 date_options = {"Today": today, "Tomorrow": tomorrow, "Friday": next_friday}
 labels = list(date_options.keys())
 
-# -----------------------
-# Refresh control (clears cache)
-# -----------------------
 col1, col2 = st.columns([3,1])
 with col1:
     selected_label = st.selectbox("Select check-in date:", labels)
@@ -53,9 +39,6 @@ with col2:
 checkin_date = date_options[selected_label]
 checkin_iso = checkin_date.isoformat()
 
-# -----------------------
-# Cached loader that invalidates on file mtime + size
-# -----------------------
 def _file_fingerprint(path: Path) -> str:
     if not path.exists():
         return "missing"
@@ -64,14 +47,15 @@ def _file_fingerprint(path: Path) -> str:
 
 @st.cache_data(show_spinner=False)
 def load_payload(path_str: str, fingerprint: str) -> dict:
-    """
-    Cache key includes the fingerprint, so cache busts whenever the file changes.
-    """
     path = Path(path_str)
     if not path.exists():
         return {}
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        st.error(f"⚠️ Failed to parse {path.name}: {e}")
+        return {}
 
 fingerprint = _file_fingerprint(DATA_PATH)
 payload = load_payload(str(DATA_PATH), fingerprint)
@@ -85,13 +69,10 @@ else:
 
 if generated_at:
     st.caption(f"Data generated at: {generated_at}")
+st.caption(f"Reading: {DATA_PATH}")
 
-# Try both label and ISO date keys
 rates = rates_by_day.get(selected_label) or rates_by_day.get(checkin_iso) or {}
 
-# -----------------------
-# Hotels and table
-# -----------------------
 hotels = [
     "Courtyard Beckley",
     "Hampton Inn Beckley",
@@ -137,22 +118,3 @@ if not chart_df.empty:
     st.bar_chart(chart_df.set_index("Hotel"))
 else:
     st.info("No numeric rates available to chart for this date.")
-
-with st.expander("Data format expected (example)"):
-    st.code("""
-{
-  "generated_at": "2025-08-26T12:34:56Z",
-  "rates_by_day": {
-    "Today": {
-      "Comfort Inn Beckley": 129,
-      "Courtyard Beckley": 139,
-      "Hampton Inn Beckley": 149
-    },
-    "2025-08-29": {
-      "Comfort Inn Beckley": 135,
-      "Courtyard Beckley": 145,
-      "Hampton Inn Beckley": 155
-    }
-  }
-}
-""".strip(), language="json")
