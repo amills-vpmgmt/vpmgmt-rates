@@ -15,14 +15,24 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
+
       - name: Run jobs (generate JSON)
         env:
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
         run: python -m app.run_jobs
+
+      - name: Upload raw SerpAPI responses
+        uses: actions/upload-artifact@v4
+        with:
+          name: serpapi-raw-${{ github.run_id }}
+          path: data/raw/*.json
+          if-no-files-found: ignore
+          retention-days: 5
+
       - name: Commit data
         run: |
           git config user.name "RateBot"
           git config user.email "ratebot@users.noreply.github.com"
-          git add data/
+          git add data/beckley_rates.json
           git commit -m "data: nightly $(date -u +%F)" || echo "no changes"
           git push
