@@ -11,17 +11,12 @@ CONFIG = Path("config/properties.yml")
 YOUR_HOTEL = "Comfort Inn Beckley"
 
 def _load_hotels():
+    """
+    Reads config/properties.yml and returns a list of dicts:
+    {name, address, city}
+    """
     if not CONFIG.exists():
-        # fallback list (shouldn't happen once config exists)
-        return [
-            {"name": "Comfort Inn Beckley", "address": "Beckley, WV", "city": "Beckley"},
-            {"name": "Courtyard Beckley", "address": "Beckley, WV", "city": "Beckley"},
-            {"name": "Hampton Inn Beckley", "address": "Beckley, WV", "city": "Beckley"},
-            {"name": "Tru by Hilton Beckley", "address": "Beckley, WV", "city": "Beckley"},
-            {"name": "Fairfield Inn Beckley", "address": "Beckley, WV", "city": "Beckley"},
-            {"name": "Best Western Beckley", "address": "Beckley, WV", "city": "Beckley"},
-            {"name": "Country Inn Beckley", "address": "Beckley, WV", "city": "Beckley"},
-        ]
+        raise FileNotFoundError("config/properties.yml not found")
     cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8")) or {}
     hotels = []
     for p in cfg.get("properties", []):
@@ -58,7 +53,7 @@ def main():
         print("WARNING: SERPAPI_KEY not set; live fetch will fail.")
 
     hotels = _load_hotels()
-    # ensure YOUR_HOTEL is present and last so it appears at bottom in dashboard
+    # ensure your hotel is present and at the end for display
     if not any(h["name"] == YOUR_HOTEL for h in hotels):
         hotels.append({"name": YOUR_HOTEL, "address": "Beckley, WV", "city": "Beckley"})
 
