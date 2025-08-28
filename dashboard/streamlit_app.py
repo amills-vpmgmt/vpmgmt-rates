@@ -7,7 +7,7 @@ import pytz
 
 st.set_page_config(page_title="Beckley Hotel Rate Tracker", page_icon="📝")
 st.title("📝 Beckley Hotel Rate Tracker")
-st.write("Primary = brand.com public refundable (for your hotel). Details show all category ranges. Source shows where the primary came from.")
+st.write("Primary = brand.com public refundable (your hotel). Details show category ranges; Expedia columns show OTA view.")
 
 APP_DIR = Path(__file__).resolve().parent
 REPO_ROOT = APP_DIR.parent
@@ -18,7 +18,6 @@ eastern = pytz.timezone("US/Eastern")
 today = datetime.now(eastern).date()
 tomorrow = today + timedelta(days=1)
 weekday = today.weekday()
-
 next_friday = today + timedelta(days=8) if weekday == 3 else today + timedelta(days=(4 - weekday) % 7)
 date_options = {"Today": today, "Tomorrow": tomorrow, "Friday": next_friday}
 labels = list(date_options.keys())
@@ -75,6 +74,10 @@ def primary_price(entry):
     except:
         return None
 
+def expedia_summary(entry):
+    if not isinstance(entry, dict): return None
+    return entry.get("expedia")
+
 def ranges_text(entry):
     if not isinstance(entry, dict): return None
     rngs = entry.get("ranges") or {}
@@ -86,6 +89,11 @@ def ranges_text(entry):
             low, high = r.get("low"), r.get("high")
             label = key.replace("_"," ")
             parts.append(f"{label}: ${low}" + ("" if low==high else f"–${high}"))
+    # add expedia range to details too
+    ex = entry.get("expedia")
+    if ex and isinstance(ex.get("low"), int) and isinstance(ex.get("high"), int):
+        ex_part = f"Expedia: ${ex['low']}" + ("" if ex['low']==ex['high'] else f"–${ex['high']}")
+        parts.append(ex_part)
     return " | ".join(parts) if parts else None
 
 def source_text(entry):
@@ -93,7 +101,6 @@ def source_text(entry):
     dbg = entry.get("debug") or {}
     src = dbg.get("picked_from","")  # ads | properties
     prov = dbg.get("provider_ctx","")
-    # shorten provider_ctx to first segment
     prov_short = prov.split("|")[0].strip() if prov else ""
     return f"{src} · {prov_short}" if (src or prov_short) else ""
 
@@ -112,11 +119,20 @@ for hotel in hotels:
     p = primary_price(entry)
     delta = "—" if hotel == YOUR_HOTEL else (f"{p - your_primary:+}" if (p is not None and your_primary is not None) else "N/A")
     detail = ranges_text(entry)
+    ex = expedia_summary(entry) or {}
+    ex_range = ""
+    ex_avg = ""
+    if isinstance(ex.get("low"), int) and isinstance(ex.get("high"), int):
+        ex_range = f"${ex['low']}" + ("" if ex['low']==ex['high'] else f"–${ex['high']}")
+    if isinstance(ex.get("avg"), int):
+        ex_avg = f"${ex['avg']}"
     rows.append({
         "Hotel": hotel,
         "Check-in": checkin_date.strftime("%A, %b %d"),
         "Primary": f"${p}" if isinstance(p, int) else "N/A",
         "Δ vs You": delta,
+        "Expedia (range)": ex_range,
+        "Expedia avg": ex_avg,
         "Details": detail or "",
         "Source": source_text(entry),
         "Raw": raw_file_text(entry)
