@@ -4,7 +4,7 @@ import json
 import os
 import yaml
 
-from app.fetchers.serpapi_google import fetch_rate_range_for_hotel
+from app.fetchers.serpapi_google import fetch_categorized_rates_for_hotel
 
 DATA = Path("data/beckley_rates.json")
 CONFIG = Path("config/properties.yml")
@@ -25,19 +25,17 @@ def _load_hotels():
 
 def _next_friday(today: date) -> date:
     weekday = today.weekday()
-    if weekday == 3:
-        return today + timedelta(days=8)
+    if weekday == 3: return today + timedelta(days=8)
     return today + timedelta(days=(4 - weekday) % 7)
 
 def _label_dates(today: date) -> dict[str, date]:
     return {"Today": today, "Tomorrow": today + timedelta(days=1), "Friday": _next_friday(today)}
 
-def fetch_day_ranges(checkin: date, hotels: list[dict]) -> dict[str, dict | str]:
+def fetch_day(checkin: date, hotels: list[dict]) -> dict[str, dict | str]:
     day: dict[str, dict | str] = {}
     for h in hotels:
-        name, addr, city = h["name"], h["address"], h["city"]
-        res = fetch_rate_range_for_hotel(name, addr, city, checkin, nights=1, adults=2)
-        day[name] = res if isinstance(res, dict) else "N/A"
+        res = fetch_categorized_rates_for_hotel(h["name"], h["address"], h["city"], checkin, nights=1, adults=2)
+        day[h["name"]] = res if isinstance(res, dict) else "N/A"
     return day
 
 def main():
@@ -50,7 +48,7 @@ def main():
 
     today = date.today()
     labels = _label_dates(today)
-    rates_by_day = {label: fetch_day_ranges(d, hotels) for label, d in labels.items()}
+    rates_by_day = {label: fetch_day(d, hotels) for label, d in labels.items()}
 
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
