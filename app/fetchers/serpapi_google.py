@@ -9,7 +9,7 @@ import httpx
 SERPAPI_KEY = os.getenv("SERPAPI_KEY")
 RAW_DIR = Path("data/raw")
 
-# ----------------- helpers -----------------
+# ----------------- basics -----------------
 def _iso(d: date) -> str: return d.isoformat()
 def _norm(t: str) -> str: return re.sub(r"[^a-z0-9]+", " ", (t or "").lower()).strip()
 def _score(a: str, b: str) -> float: return SequenceMatcher(None, _norm(a), _norm(b)).ratio()
@@ -22,7 +22,7 @@ def _to_int(val) -> Optional[int]:
     return int(m.group(1).replace(",", "")) if m else None
 
 def _nightly_ok(v: Optional[int]) -> bool:
-    return v is not None and 40 <= v <= 600  # guardrails
+    return v is not None and 40 <= v <= 600  # guardrails for this market
 
 def _save_raw(hotel_name: str, checkin: date, body: str, suffix: str) -> Path:
     RAW_DIR.mkdir(parents=True, exist_ok=True)
@@ -32,7 +32,7 @@ def _save_raw(hotel_name: str, checkin: date, body: str, suffix: str) -> Path:
     out.write_text(body, encoding="utf-8")
     return out
 
-# ----------------- brand provider matching -----------------
+# ----------------- brand detection -----------------
 BRAND_PATTERNS = {
     "choice":       [r"choice\s*hotels", r"choicehotels", r"choicehotels\.com", r"comfort inn", r"quality inn", r"sleep inn", r"clarion"],
     "hilton":       [r"hilton", r"hilton\.com", r"hampton", r"tru by hilton", r"tru"],
@@ -45,16 +45,9 @@ def _is_brand_provider(text: str, brand: Optional[str]) -> bool:
     if not brand or brand not in BRAND_PATTERNS: 
         return False
     t = _norm(text or "")
-    for pat in BRAND_PATTERNS[brand]:
-        if re.search(pat, t):
-            return True
-    return False
+    return any(re.search(p, t) for p in BRAND_PATTERNS[brand])
 
 def _gather_provider_context(obj: Dict[str, Any]) -> str:
-    """
-    Try to find any field that hints at the provider/merchant:
-    'provider', 'merchant', 'source', 'rate_plan', 'displayed_provider', 'seller', 'description', 'title'.
-    """
     keys = ("provider","merchant","source","displayed_provider","seller","rate_plan","description","title","name")
     parts = []
     for k in keys:
@@ -63,7 +56,19 @@ def _gather_provider_context(obj: Dict[str, Any]) -> str:
             parts.append(v)
     return " | ".join(parts)
 
-# ----------------- offer extraction -----------------
+def _is_member(text: str) -> bool:
+    t = _norm(text)
+    return any(k in t for k in ["member", "choice privileges", "hilton honors", "bonvoy", "marriott bonvoy"])
+
+def _is_refundable(text: str) -> Optional[bool]:
+    t = _norm(text)
+    if "nonrefundable" in t or "non-refundable" in t or "advance purchase" in t or "prepay" in t:
+        return False
+    if "free cancellation" in t or "refundable" in t or "cancel" in t:
+        return True
+    return None
+
+# ----------------- extractors -----------------
 def _collect_from_rate_obj(obj: Dict[str, Any]) -> List[int]:
     vals: List[int] = []
     for k in ("extracted_before_taxes_fees","extracted_lowest","before_taxes_fees","lowest","price"):
@@ -74,27 +79,28 @@ def _collect_from_rate_obj(obj: Dict[str, Any]) -> List[int]:
 def _offers_from_property(p: Dict[str, Any]) -> List[Dict[str, Any]]:
     offers: List[Dict[str, Any]] = []
     ctx_txt = _gather_provider_context(p)
-
     # rate_per_night
     rpn = p.get("rate_per_night")
     if isinstance(rpn, dict):
         for price in _collect_from_rate_obj(rpn):
-            offers.append({"price": price, "basis": "nightly", "provider_ctx": ctx_txt, "source": "properties"})
+            offers.append({"price": price, "basis": "nightly", "provider_ctx": ctx_txt,
+                           "member": _is_member(ctx_txt), "refundable": _is_refundable(ctx_txt), "source": "properties"})
     else:
         v = _to_int(rpn)
         if _nightly_ok(v):
-            offers.append({"price": v, "basis": "nightly", "provider_ctx": ctx_txt, "source": "properties"})
-
+            offers.append({"price": v, "basis": "nightly", "provider_ctx": ctx_txt,
+                           "member": _is_member(ctx_txt), "refundable": _is_refundable(ctx_txt), "source": "properties"})
     # total_rate
     tr = p.get("total_rate")
     if isinstance(tr, dict):
         for price in _collect_from_rate_obj(tr):
-            offers.append({"price": price, "basis": "nightly", "provider_ctx": ctx_txt, "source": "properties"})
+            offers.append({"price": price, "basis": "nightly", "provider_ctx": ctx_txt,
+                           "member": _is_member(ctx_txt), "refundable": _is_refundable(ctx_txt), "source": "properties"})
     else:
         v = _to_int(tr)
         if _nightly_ok(v):
-            offers.append({"price": v, "basis": "nightly", "provider_ctx": ctx_txt, "source": "properties"})
-
+            offers.append({"price": v, "basis": "nightly", "provider_ctx": ctx_txt,
+                           "member": _is_member(ctx_txt), "refundable": _is_refundable(ctx_txt), "source": "properties"})
     # nested prices[]
     prices = p.get("prices")
     if isinstance(prices, list):
@@ -104,14 +110,17 @@ def _offers_from_property(p: Dict[str, Any]) -> List[Dict[str, Any]]:
             v = pr.get("rate_per_night")
             if isinstance(v, dict):
                 for price in _collect_from_rate_obj(v):
-                    offers.append({"price": price, "basis": "nightly", "provider_ctx": sub_ctx, "source": "properties"})
+                    offers.append({"price": price, "basis": "nightly", "provider_ctx": sub_ctx,
+                                   "member": _is_member(sub_ctx), "refundable": _is_refundable(sub_ctx), "source": "properties"})
             else:
                 vv = _to_int(v)
                 if _nightly_ok(vv):
-                    offers.append({"price": vv, "basis": "nightly", "provider_ctx": sub_ctx, "source": "properties"})
+                    offers.append({"price": vv, "basis": "nightly", "provider_ctx": sub_ctx,
+                                   "member": _is_member(sub_ctx), "refundable": _is_refundable(sub_ctx), "source": "properties"})
             pv = _to_int(pr.get("price"))
             if _nightly_ok(pv):
-                offers.append({"price": pv, "basis": "nightly", "provider_ctx": sub_ctx, "source": "properties"})
+                offers.append({"price": pv, "basis": "nightly", "provider_ctx": sub_ctx,
+                               "member": _is_member(sub_ctx), "refundable": _is_refundable(sub_ctx), "source": "properties"})
     return offers
 
 def _offers_from_ad(ad: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -120,10 +129,11 @@ def _offers_from_ad(ad: Dict[str, Any]) -> List[Dict[str, Any]]:
     for k in ("extracted_price", "price"):
         price = _to_int(ad.get(k))
         if _nightly_ok(price):
-            offers.append({"price": price, "basis": "nightly", "provider_ctx": ctx, "source": "ads"})
+            offers.append({"price": price, "basis": "nightly", "provider_ctx": ctx,
+                           "member": _is_member(ctx), "refundable": _is_refundable(ctx), "source": "ads"})
     return offers
 
-# ----------------- picking -----------------
+# ----------------- selectors -----------------
 def _properties_from(data: Dict[str, Any]) -> List[Dict[str, Any]]:
     for key in ("properties", "hotel_results"):
         arr = data.get(key)
@@ -162,13 +172,52 @@ def _best_match(items: List[Dict[str, Any]], hotel_name: str, city: str, name_ke
         return None
     return best
 
-# ----------------- main entry: BRAND FILTER -----------------
-def fetch_brand_primary_for_hotel(
+# ----------------- categorize + primary -----------------
+def _categorize(offers: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    cats: Dict[str, List[Dict[str, Any]]] = {
+        "public_refundable": [],
+        "public_nonrefundable": [],
+        "member_refundable": [],
+        "member_nonrefundable": []
+    }
+    for o in offers:
+        if not _nightly_ok(o.get("price")): 
+            continue
+        member = bool(o.get("member"))
+        ref = o.get("refundable")
+        if ref is None: ref = True  # default to refundable if unknown
+        key = (
+            "member_refundable" if member and ref else
+            "member_nonrefundable" if member and not ref else
+            "public_refundable" if not member and ref else
+            "public_nonrefundable"
+        )
+        cats[key].append(o)
+    return cats
+
+def _summarize_ranges(cats: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Dict[str, int]]:
+    out: Dict[str, Dict[str, int]] = {}
+    for cat, items in cats.items():
+        prices = sorted({o["price"] for o in items if _nightly_ok(o["price"])})
+        if prices:
+            out[cat] = {"low": prices[0], "high": prices[-1]}
+    return out
+
+def _pick_brand_public_refundable_primary(cats: Dict[str, List[Dict[str, Any]]], brand_filtered_offers: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Primary rule: brand.com + public + refundable + lowest."""
+    offers = [o for o in brand_filtered_offers if not o.get("member") and (o.get("refundable") in (True, None))]
+    if not offers: 
+        return None
+    best = sorted(offers, key=lambda o: o["price"])[0]
+    return {"price": best["price"], "category": "public_refundable", "basis": "nightly", "source": best.get("source")}
+
+# ----------------- public function -----------------
+def fetch_brand_categorized_for_hotel(
     hotel_name: str,
     address: str,
     city: str,
     checkin: date,
-    brand: Optional[str] = None,  # e.g. "choice" to force Choice-only offers
+    brand: Optional[str] = None,   # e.g. "choice", "hilton", "marriott"
     nights: int = 1,
     adults: int = 2,
     gl: str = "us",
@@ -176,18 +225,20 @@ def fetch_brand_primary_for_hotel(
     currency: str = "USD",
     timeout_s: float = 25.0,
     retries: int = 2,
-) -> Optional[int]:
+) -> Optional[Dict[str, Any]]:
     """
-    Returns a single primary nightly price restricted to the hotel's brand provider
-    (e.g., Choice Hotels for Comfort Inn) if 'brand' is provided.
-    Falls back to None if no brand-direct offers are present.
+    Returns:
+      {
+        "primary": {"price": 144, "category": "public_refundable", "basis":"nightly", "source":"properties|ads"},
+        "ranges": { "public_refundable": {"low":..., "high":...}, ... },
+        "brand_strict": true/false   # whether primary honored brand-only filter
+      }
     """
-
     if not SERPAPI_KEY:
         print(f"[MISS] {hotel_name} {checkin} -> SERPAPI_KEY missing")
         return None
 
-    def _query(q: str, tag: str) -> Optional[int]:
+    def _query(q: str, tag: str) -> Optional[Dict[str, Any]]:
         params = {
             "engine": "google_hotels",
             "q": q,
@@ -218,8 +269,6 @@ def fetch_brand_primary_for_hotel(
         print(f"[RAW]  {hotel_name} {checkin} -> {p_ok.name}")
 
         data = r.json()
-
-        # collect offers from best-matched property and ads
         offers: List[Dict[str, Any]] = []
 
         props = _properties_from(data)
@@ -234,26 +283,20 @@ def fetch_brand_primary_for_hotel(
             if ad:
                 offers += _offers_from_ad(ad)
 
-        # filter by brand provider if asked
-        filtered: List[Dict[str, Any]] = []
-        for o in offers:
-            if not _nightly_ok(o.get("price")):
-                continue
-            prov_ctx = o.get("provider_ctx", "")
-            if brand:
-                if _is_brand_provider(prov_ctx, brand):
-                    filtered.append(o)
-            else:
-                filtered.append(o)
-
-        if not filtered:
-            print(f"[MISS] {hotel_name} {checkin} -> no brand-direct offers matched ({brand or 'any'}) ({tag})")
+        offers = [o for o in offers if _nightly_ok(o.get("price"))]
+        if not offers:
+            print(f"[MISS] {hotel_name} {checkin} -> no usable offers ({tag})")
             return None
 
-        # choose the lowest brand-direct nightly price
-        best = sorted(filtered, key=lambda x: x["price"])[0]
-        print(f"[OK]   {hotel_name} {checkin} -> ${best['price']} (brand={brand}, via {best.get('source')})")
-        return best["price"]
+        cats_all = _categorize(offers)
+        # Filter to brand provider for PRIMARY selection
+        brand_offers = [o for o in offers if _is_brand_provider(o.get("provider_ctx",""), brand)] if brand else offers
+        primary = _pick_brand_public_refundable_primary(cats_all, brand_offers)
+
+        ranges = _summarize_ranges(_categorize(brand_offers)) if brand else _summarize_ranges(cats_all)
+        brand_strict = bool(brand)
+
+        return {"primary": primary, "ranges": ranges, "brand_strict": brand_strict}
 
     # precise then relaxed
     res = _query(f"{hotel_name}, {address}", "addr")
