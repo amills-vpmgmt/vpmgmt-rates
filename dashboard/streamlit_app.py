@@ -38,16 +38,14 @@ with col2:
 checkin_date = date_options[selected_label]
 
 def _file_fingerprint(path: Path) -> str:
-    if not path.exists():
-        return "missing"
+    if not path.exists(): return "missing"
     stat = path.stat()
     return f"{stat.st_size}-{stat.st_mtime_ns}"
 
 @st.cache_data(show_spinner=False)
 def load_payload(path_str: str, fingerprint: str) -> dict:
     path = Path(path_str)
-    if not path.exists():
-        return {}
+    if not path.exists(): return {}
     try:
         with path.open("r", encoding="utf-8") as f:
             return json.load(f)
@@ -58,11 +56,8 @@ def load_payload(path_str: str, fingerprint: str) -> dict:
 payload = load_payload(str(DATA_PATH), _file_fingerprint(DATA_PATH))
 rates_by_day = payload.get("rates_by_day", {})
 generated_at = payload.get("generated_at")
-
-if rates_by_day:
-    st.success(f"✅ Loaded local rates ({DATA_PATH.relative_to(REPO_ROOT)})")
-if generated_at:
-    st.caption(f"Data generated at: {generated_at}")
+if rates_by_day: st.success(f"✅ Loaded local rates ({DATA_PATH.relative_to(REPO_ROOT)})")
+if generated_at: st.caption(f"Data generated at: {generated_at}")
 
 rates = rates_by_day.get(selected_label, {})
 
@@ -76,37 +71,52 @@ hotels = [
     YOUR_HOTEL,
 ]
 
+def to_range(v):
+    """Accepts either an int (old format) or {'low':..,'high':..} (new). Returns (low, high) or (None, None)."""
+    if isinstance(v, dict) and "low" in v and "high" in v:
+        return v["low"], v["high"]
+    try:
+        iv = int(v)
+        return iv, iv
+    except:
+        return None, None
+
+def midpoint(low, high):
+    if low is None or high is None: return None
+    return (int(low) + int(high)) // 2
+
+your_low, your_high = to_range(rates.get(YOUR_HOTEL))
+your_mid = midpoint(your_low, your_high)
+
 st.subheader(f"📍 Beckley, WV — {selected_label} ({checkin_date.strftime('%A, %b %d')})")
 
-def to_int_or_none(v):
-    try:
-        return int(v)
-    except:
-        return None
-
-your_rate_val = to_int_or_none(rates.get(YOUR_HOTEL))
 rows = []
+chart_hotels, chart_vals = [], []
 for hotel in hotels:
-    r_val = to_int_or_none(rates.get(hotel))
+    low, high = to_range(rates.get(hotel))
+    show_rate = "N/A"
+    if low is not None and high is not None:
+        show_rate = f"${low}" if low == high else f"${low}–${high}"
     delta = "—" if hotel == YOUR_HOTEL else (
-        f"{(r_val - your_rate_val):+}" if (r_val is not None and your_rate_val is not None) else "N/A"
+        f"{(midpoint(low, high) - your_mid):+}" if (midpoint(low, high) is not None and your_mid is not None) else "N/A"
     )
     rows.append({
         "Hotel": hotel,
         "Check-in": checkin_date.strftime("%A, %b %d"),
-        "Rate": f"${r_val}" if r_val is not None else "N/A",
-        "Δ vs You": delta
+        "Rate": show_rate,
+        "Δ vs You (midpoint)": delta
     })
+    m = midpoint(low, high)
+    if m is not None:
+        chart_hotels.append(hotel)
+        chart_vals.append(m)
 
 df = pd.DataFrame(rows)
 st.dataframe(df, use_container_width=True)
 
-st.subheader("📊 Rate Comparison Chart")
-chart_df = pd.DataFrame({
-    "Hotel": [h for h in hotels if to_int_or_none(rates.get(h)) is not None],
-    "Rate": [to_int_or_none(rates.get(h)) for h in hotels if to_int_or_none(rates.get(h)) is not None],
-})
-if not chart_df.empty:
+st.subheader("📊 Rate Comparison Chart (midpoints)")
+if chart_vals:
+    chart_df = pd.DataFrame({"Hotel": chart_hotels, "Rate (midpoint)": chart_vals})
     st.bar_chart(chart_df.set_index("Hotel"))
 else:
-    st.info("No numeric rates available to chart for this date.")
+    st.info("No numeric ranges available to chart for this date.")
