@@ -4,7 +4,7 @@ import json
 import os
 import yaml
 
-from app.fetchers.serpapi_google import fetch_brand_primary_for_hotel
+from app.fetchers.serpapi_google import fetch_brand_categorized_for_hotel
 
 DATA = Path("data/beckley_rates.json")
 CONFIG = Path("config/properties.yml")
@@ -25,27 +25,26 @@ def _load_hotels():
     return hotels
 
 def _next_friday(today: date) -> date:
-    weekday = today.weekday()
-    if weekday == 3: return today + timedelta(days=8)
-    return today + timedelta(days=(4 - weekday) % 7)
+    wd = today.weekday()
+    if wd == 3: return today + timedelta(days=8)
+    return today + timedelta(days=(4 - wd) % 7)
 
 def _label_dates(today: date) -> dict[str, date]:
     return {"Today": today, "Tomorrow": today + timedelta(days=1), "Friday": _next_friday(today)}
 
-def fetch_day(checkin: date, hotels: list[dict]) -> dict[str, int | str]:
-    day: dict[str, int | str] = {}
+def fetch_day(checkin: date, hotels: list[dict]) -> dict[str, dict | str]:
+    day: dict[str, dict | str] = {}
     for h in hotels:
-        # Force brand-direct only for YOUR_HOTEL (Comfort Inn / Choice)
-        brand_filter = h["brand"] if h["name"] == YOUR_HOTEL else None
-        price = fetch_brand_primary_for_hotel(
+        brand_for_primary = h["brand"] if h["name"] == YOUR_HOTEL else None
+        res = fetch_brand_categorized_for_hotel(
             hotel_name=h["name"],
             address=h["address"],
             city=h["city"],
             checkin=checkin,
-            brand=brand_filter,   # ⬅️ Choice-only for Comfort Inn
+            brand=brand_for_primary,  # brand.com-only primary for YOUR hotel
             nights=1, adults=2
         )
-        day[h["name"]] = int(price) if isinstance(price, int) else "N/A"
+        day[h["name"]] = res if isinstance(res, dict) else "N/A"
     return day
 
 def main():
