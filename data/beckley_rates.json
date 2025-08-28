@@ -1,111 +1,291 @@
 {
-  "generated_at": "2025-08-28T16:46:30.009894Z",
+  "generated_at": "2025-08-28T17:20:32.880333Z",
   "rates_by_day": {
     "Today": {
       "Comfort Inn Beckley": {
-        "low": 152,
-        "high": 155,
-        "source": "properties|ads"
+        "primary": {
+          "price": 129,
+          "category": "public_refundable",
+          "basis": "nightly_before_tax",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 123,
+            "high": 145
+          }
+        }
       },
       "Courtyard Beckley": {
-        "low": 166,
-        "high": 188,
-        "source": "properties"
+        "primary": {
+          "price": 168,
+          "category": "public_refundable",
+          "basis": "nightly_before_tax",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 168,
+            "high": 190
+          }
+        }
       },
       "Hampton Inn Beckley": {
-        "low": 160,
-        "high": 179,
-        "source": "properties"
+        "primary": {
+          "price": 155,
+          "category": "public_refundable",
+          "basis": "nightly_before_tax",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 155,
+            "high": 174
+          }
+        }
       },
       "Tru by Hilton Beckley": {
-        "low": 135,
-        "high": 151,
-        "source": "properties"
+        "primary": {
+          "price": 135,
+          "category": "public_refundable",
+          "basis": "nightly_before_tax",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 135,
+            "high": 151
+          }
+        }
       },
       "Fairfield Inn Beckley": {
-        "low": 189,
-        "high": 212,
-        "source": "properties"
+        "primary": {
+          "price": 212,
+          "category": "public_refundable",
+          "basis": "nightly_unknown",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 212,
+            "high": 212
+          }
+        }
       },
       "Best Western Beckley": {
-        "low": 146,
-        "high": 165,
-        "source": "properties"
+        "primary": {
+          "price": 146,
+          "category": "public_refundable",
+          "basis": "nightly_before_tax",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 146,
+            "high": 165
+          }
+        }
       },
       "Country Inn Beckley": {
-        "low": 95,
-        "high": 107,
-        "source": "properties"
+        "primary": {
+          "price": 93,
+          "category": "public_refundable",
+          "basis": "nightly_before_tax",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 93,
+            "high": 105
+          }
+        }
       }
     },
     "Tomorrow": {
       "Comfort Inn Beckley": {
-        "low": 189,
-        "high": 192,
-        "source": "properties|ads"
+        "primary": {
+          "price": 150,
+          "category": "public_refundable",
+          "basis": "nightly_before_tax",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 150,
+            "high": 168
+          }
+        }
       },
       "Courtyard Beckley": {
-        "low": 207,
-        "high": 230,
-        "source": "properties"
+        "primary": {
+          "price": 207,
+          "category": "public_refundable",
+          "basis": "nightly_before_tax",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 207,
+            "high": 230
+          }
+        }
       },
       "Hampton Inn Beckley": {
-        "low": 231,
-        "high": 231,
-        "source": "properties"
+        "primary": {
+          "price": 181,
+          "category": "public_refundable",
+          "basis": "nightly_before_tax",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 181,
+            "high": 203
+          }
+        }
       },
       "Tru by Hilton Beckley": {
-        "low": 155,
-        "high": 174,
-        "source": "properties"
+        "primary": {
+          "price": 216,
+          "category": "public_refundable",
+          "basis": "nightly_unknown",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 216,
+            "high": 216
+          }
+        }
       },
       "Fairfield Inn Beckley": {
-        "low": 209,
-        "high": 234,
-        "source": "properties"
+        "primary": {
+          "price": 209,
+          "category": "public_refundable",
+          "basis": "nightly_before_tax",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 209,
+            "high": 234
+          }
+        }
       },
       "Best Western Beckley": {
-        "low": 135,
-        "high": 152,
-        "source": "properties"
+        "primary": {
+          "price": 175,
+          "category": "public_refundable",
+          "basis": "nightly_before_tax",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 175,
+            "high": 198
+          }
+        }
       },
       "Country Inn Beckley": {
-        "low": 150,
-        "high": 168,
-        "source": "properties"
+        "primary": {
+          "price": 150,
+          "category": "public_refundable",
+          "basis": "nightly_before_tax",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 150,
+            "high": 168
+          }
+        }
       }
     },
     "Friday": {
       "Comfort Inn Beckley": {
-        "low": 194,
-        "high": 217,
-        "source": "properties|ads"
+        "primary": {
+          "price": 194,
+          "category": "public_refundable",
+          "basis": "nightly_before_tax",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 194,
+            "high": 217
+          }
+        }
       },
       "Courtyard Beckley": {
-        "low": 168,
-        "high": 190,
-        "source": "properties"
+        "primary": {
+          "price": 225,
+          "category": "public_refundable",
+          "basis": "nightly_unknown",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 225,
+            "high": 225
+          }
+        }
       },
       "Hampton Inn Beckley": {
-        "low": 311,
-        "high": 311,
-        "source": "properties"
+        "primary": {
+          "price": 275,
+          "category": "public_refundable",
+          "basis": "nightly_before_tax",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 275,
+            "high": 311
+          }
+        }
       },
       "Tru by Hilton Beckley": "N/A",
       "Fairfield Inn Beckley": {
-        "low": 287,
-        "high": 321,
-        "source": "properties"
+        "primary": {
+          "price": 269,
+          "category": "public_refundable",
+          "basis": "nightly_before_tax",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 269,
+            "high": 301
+          }
+        }
       },
       "Best Western Beckley": {
-        "low": 218,
-        "high": 246,
-        "source": "properties"
+        "primary": {
+          "price": 251,
+          "category": "public_refundable",
+          "basis": "nightly_unknown",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 251,
+            "high": 251
+          }
+        }
       },
       "Country Inn Beckley": {
-        "low": 229,
-        "high": 229,
-        "source": "properties"
+        "primary": {
+          "price": 204,
+          "category": "public_refundable",
+          "basis": "nightly_before_tax",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 204,
+            "high": 229
+          }
+        }
       }
     }
   }
