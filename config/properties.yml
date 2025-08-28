@@ -6,6 +6,7 @@ properties:
     state: WV
     timezone: America/New_York
     is_mine: true
+    brand: choice        # ⬅️ NEW
 
   - id: 2
     name: Courtyard Beckley
@@ -13,6 +14,7 @@ properties:
     city: Beckley
     state: WV
     timezone: America/New_York
+    brand: marriott
 
   - id: 3
     name: Hampton Inn Beckley
@@ -20,6 +22,7 @@ properties:
     city: Beckley
     state: WV
     timezone: America/New_York
+    brand: hilton
 
   - id: 4
     name: Tru by Hilton Beckley
@@ -27,6 +30,7 @@ properties:
     city: Beckley
     state: WV
     timezone: America/New_York
+    brand: hilton
 
   - id: 5
     name: Fairfield Inn Beckley
@@ -34,6 +38,7 @@ properties:
     city: Beckley
     state: WV
     timezone: America/New_York
+    brand: marriott
 
   - id: 6
     name: Best Western Beckley
@@ -41,6 +46,7 @@ properties:
     city: Beckley
     state: WV
     timezone: America/New_York
+    brand: bestwestern
 
   - id: 7
     name: Country Inn Beckley
@@ -48,3 +54,4 @@ properties:
     city: Beckley
     state: WV
     timezone: America/New_York
+    brand: radisson   # (Country Inn & Suites)
