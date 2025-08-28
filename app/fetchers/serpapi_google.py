@@ -4,6 +4,7 @@ from datetime import date, timedelta, datetime
 from difflib import SequenceMatcher
 from typing import Optional, Dict, Any, List
 from pathlib import Path
+import statistics
 import httpx
 
 SERPAPI_KEY = os.getenv("SERPAPI_KEY")
@@ -32,7 +33,7 @@ def _save_raw(hotel_name: str, checkin: date, body: str, suffix: str) -> Path:
     out.write_text(body, encoding="utf-8")
     return out
 
-# ----------------- brand detection -----------------
+# ----------------- brand / provider detection -----------------
 BRAND_PATTERNS = {
     "choice":       [r"choice\s*hotels", r"choicehotels", r"choicehotels\.com", r"comfort inn", r"quality inn", r"sleep inn", r"clarion"],
     "hilton":       [r"hilton", r"hilton\.com", r"hampton", r"tru by hilton", r"tru"],
@@ -40,12 +41,16 @@ BRAND_PATTERNS = {
     "bestwestern":  [r"best\s*western", r"bestwestern", r"bestwestern\.com"],
     "radisson":     [r"radisson", r"country inn", r"country inn & suites"],
 }
-
 def _is_brand_provider(text: str, brand: Optional[str]) -> bool:
     if not brand or brand not in BRAND_PATTERNS: 
         return False
     t = _norm(text or "")
     return any(re.search(p, t) for p in BRAND_PATTERNS[brand])
+
+def _is_expedia(text: str) -> bool:
+    t = _norm(text or "")
+    # catch both Expedia and Hotels.com (same group) if you want; for now stick to Expedia
+    return "expedia" in t
 
 def _gather_provider_context(obj: Dict[str, Any]) -> str:
     keys = ("provider","merchant","source","displayed_provider","seller","rate_plan","description","title","name")
@@ -203,13 +208,21 @@ def _summarize_ranges(cats: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Dict[s
             out[cat] = {"low": prices[0], "high": prices[-1]}
     return out
 
-def _pick_brand_public_refundable_primary(cats: Dict[str, List[Dict[str, Any]]], brand_filtered_offers: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def _pick_brand_public_refundable_primary(brand_filtered_offers: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """Primary rule: brand.com + public + refundable + lowest."""
     offers = [o for o in brand_filtered_offers if not o.get("member") and (o.get("refundable") in (True, None))]
     if not offers: 
         return None
     best = sorted(offers, key=lambda o: o["price"])[0]
     return {"price": best["price"], "category": "public_refundable", "basis": "nightly", "source": best.get("source")}
+
+def _summarize_expedia(offers: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    ex_prices = [o["price"] for o in offers if _is_expedia(o.get("provider_ctx","")) and _nightly_ok(o.get("price"))]
+    if not ex_prices:
+        return None
+    ex_prices.sort()
+    avg = int(round(statistics.mean(ex_prices)))
+    return {"low": ex_prices[0], "high": ex_prices[-1], "avg": avg, "count": len(ex_prices)}
 
 # ----------------- public function -----------------
 def fetch_brand_categorized_for_hotel(
@@ -229,8 +242,9 @@ def fetch_brand_categorized_for_hotel(
     """
     Returns:
       {
-        "primary": {"price": 144, "category": "public_refundable", "basis":"nightly", "source":"properties|ads"},
-        "ranges": { "public_refundable": {"low":..., "high":...}, ... },
+        "primary": {...},           # brand.com public refundable
+        "ranges": {...},            # category ranges (brand-filtered if brand provided)
+        "expedia": {...} | null,    # {"low","high","avg","count"} from Expedia offers
         "brand_strict": true/false,
         "debug": { "provider_ctx": "...", "picked_from": "ads|properties", "raw_file": "..." }
       }
@@ -291,20 +305,22 @@ def fetch_brand_categorized_for_hotel(
             print(f"[MISS] {hotel_name} {checkin} -> no usable offers ({tag})")
             return None
 
-        cats_all = _categorize(offers)
-        # Filter to brand provider for PRIMARY selection
+        # brand-only pool for PRIMARY
         brand_offers = [o for o in offers if _is_brand_provider(o.get("provider_ctx",""), brand)] if brand else offers
-        primary = _pick_brand_public_refundable_primary(cats_all, brand_offers)
+        primary = _pick_brand_public_refundable_primary(brand_offers)
 
-        # Build ranges from brand-filtered offers if brand specified, else from all
+        # category ranges (use brand pool if brand specified)
+        cats_all = _categorize(offers)
         ranges = _summarize_ranges(_categorize(brand_offers)) if brand else _summarize_ranges(cats_all)
 
-        # Attach debug breadcrumb (provider context + source + raw filename)
+        # expedia summary from ALL offers (not brand-filtered)
+        expedia = _summarize_expedia(offers)
+
+        # debug breadcrumb
         debug: Dict[str, Any] = {"raw_file": raw_used}
         if primary:
             match = None
-            pool = brand_offers if brand else offers
-            for o in pool:
+            for o in brand_offers:
                 if o.get("price") == primary["price"] and (o.get("source") == primary.get("source")):
                     match = o
                     break
@@ -315,6 +331,7 @@ def fetch_brand_categorized_for_hotel(
         return {
             "primary": primary,
             "ranges": ranges,
+            "expedia": expedia,
             "brand_strict": bool(brand),
             "debug": debug
         }
