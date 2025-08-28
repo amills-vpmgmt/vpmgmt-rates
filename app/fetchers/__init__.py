@@ -1,1 +1,1 @@
-# package marker
+# marks 'app.fetchers' as a package
