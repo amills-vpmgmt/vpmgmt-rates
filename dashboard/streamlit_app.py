@@ -5,9 +5,9 @@ from pathlib import Path
 import json
 import pytz
 
-st.set_page_config(page_title="Beckley Competitor Rate Tracker", page_icon="📝")
+st.set_page_config(page_title="Beckley Hotel Rate Tracker", page_icon="📝")
 st.title("📝 Beckley Hotel Rate Tracker")
-st.write("Primary = brand.com public refundable (for your hotel). Details show all category ranges.")
+st.write("Primary = brand.com public refundable (for your hotel). Details show all category ranges. Source shows where the primary came from.")
 
 APP_DIR = Path(__file__).resolve().parent
 REPO_ROOT = APP_DIR.parent
@@ -88,6 +88,20 @@ def ranges_text(entry):
             parts.append(f"{label}: ${low}" + ("" if low==high else f"–${high}"))
     return " | ".join(parts) if parts else None
 
+def source_text(entry):
+    if not isinstance(entry, dict): return ""
+    dbg = entry.get("debug") or {}
+    src = dbg.get("picked_from","")  # ads | properties
+    prov = dbg.get("provider_ctx","")
+    # shorten provider_ctx to first segment
+    prov_short = prov.split("|")[0].strip() if prov else ""
+    return f"{src} · {prov_short}" if (src or prov_short) else ""
+
+def raw_file_text(entry):
+    if not isinstance(entry, dict): return ""
+    dbg = entry.get("debug") or {}
+    return dbg.get("raw_file","")
+
 your_primary = primary_price(data_for_day.get(YOUR_HOTEL))
 
 st.subheader(f"📍 Beckley, WV — {selected_label} ({checkin_date.strftime('%A, %b %d')})")
@@ -103,7 +117,9 @@ for hotel in hotels:
         "Check-in": checkin_date.strftime("%A, %b %d"),
         "Primary": f"${p}" if isinstance(p, int) else "N/A",
         "Δ vs You": delta,
-        "Details": detail or ""
+        "Details": detail or "",
+        "Source": source_text(entry),
+        "Raw": raw_file_text(entry)
     })
     if p is not None:
         chart_hotels.append(hotel)
