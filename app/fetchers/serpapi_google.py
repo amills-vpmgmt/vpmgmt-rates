@@ -9,14 +9,13 @@ import httpx
 SERPAPI_KEY = os.getenv("SERPAPI_KEY")
 RAW_DIR = Path("data/raw")
 
-# ---------- small helpers ----------
+# ---------- helpers ----------
 def _iso(d: date) -> str: return d.isoformat()
 def _norm(t: str) -> str: return re.sub(r"[^a-z0-9]+", " ", (t or "").lower()).strip()
 def _score(a: str, b: str) -> float: return SequenceMatcher(None, _norm(a), _norm(b)).ratio()
 def _city_in(addr: str, city: str) -> bool: return city.lower() in (addr or "").lower()
 
-def _clean_int(val) -> Optional[int]:
-    """Parse an int from strings like '$165', 'USD 135', '135.00' or raw numbers."""
+def _to_int(val) -> Optional[int]:
     if val is None: return None
     if isinstance(val, (int, float)): v = int(val)
     else:
@@ -26,7 +25,7 @@ def _clean_int(val) -> Optional[int]:
     return v
 
 def _price_ok(v: Optional[int]) -> bool:
-    return v is not None and 40 <= v <= 600  # nightly base guardrails
+    return v is not None and 40 <= v <= 600  # guardrails for nightly base
 
 def _save_raw(hotel_name: str, checkin: date, body: str, suffix: str) -> Path:
     RAW_DIR.mkdir(parents=True, exist_ok=True)
@@ -36,78 +35,74 @@ def _save_raw(hotel_name: str, checkin: date, body: str, suffix: str) -> Path:
     out.write_text(body, encoding="utf-8")
     return out
 
-# ---------- extract candidates from a single hotel object ----------
-def _extract_price_candidates_from_property(p: Dict[str, Any]) -> List[int]:
-    """Works for Google Hotels 'properties[]' shapes."""
-    cands: List[int] = []
+# ---------- candidate extraction ----------
+_PREF_ORDER = (
+    "extracted_before_taxes_fees",
+    "extracted_lowest",
+    "before_taxes_fees",
+    "lowest",
+)
 
-    # 1) rate_per_night can be INT or OBJECT {lowest, extracted_lowest, before_taxes_fees, extracted_before_taxes_fees}
+def _from_rate_obj(obj: Dict[str, Any]) -> List[int]:
+    vals: List[int] = []
+    for k in _PREF_ORDER:
+        v = _to_int(obj.get(k))
+        if _price_ok(v): vals.append(v)
+    return vals
+
+def _cands_from_property(p: Dict[str, Any]) -> List[int]:
+    c: List[int] = []
     rpn = p.get("rate_per_night")
-    if isinstance(rpn, dict):
-        for k in ("extracted_before_taxes_fees", "extracted_lowest", "before_taxes_fees", "lowest"):
-            v = _clean_int(rpn.get(k))
-            if _price_ok(v): cands.append(v)
+    if isinstance(rpn, dict): c += _from_rate_obj(rpn)
     else:
-        v = _clean_int(rpn)
-        if _price_ok(v): cands.append(v)
+        v = _to_int(rpn)
+        if _price_ok(v): c.append(v)
 
-    # 2) total_rate may mirror rate_per_night
     tr = p.get("total_rate")
-    if isinstance(tr, dict):
-        for k in ("extracted_before_taxes_fees", "extracted_lowest", "before_taxes_fees", "lowest"):
-            v = _clean_int(tr.get(k))
-            if _price_ok(v): cands.append(v)
+    if isinstance(tr, dict): c += _from_rate_obj(tr)
     else:
-        v = _clean_int(tr)
-        if _price_ok(v): cands.append(v)
+        v = _to_int(tr)
+        if _price_ok(v): c.append(v)
 
-    # 3) legacy flat keys some responses still expose
     for k in ("price", "rate_per_night_low", "rate_per_night_high", "min_price", "max_price"):
-        v = _clean_int(p.get(k))
-        if _price_ok(v): cands.append(v)
+        v = _to_int(p.get(k))
+        if _price_ok(v): c.append(v)
 
-    # 4) nested prices[]
     prices = p.get("prices")
     if isinstance(prices, list):
         for pr in prices:
-            if isinstance(pr, dict):
-                for k in ("rate_per_night", "price"):
-                    v = pr.get(k)
-                    if isinstance(v, dict):  # sometimes nested object again
-                        vv = _clean_int(v.get("extracted_lowest") or v.get("extracted_before_taxes_fees") or v.get("lowest"))
-                    else:
-                        vv = _clean_int(v)
-                    if _price_ok(vv): cands.append(vv)
+            if not isinstance(pr, dict): continue
+            v = pr.get("rate_per_night")
+            if isinstance(v, dict): c += _from_rate_obj(v)
+            else:
+                vv = _to_int(v)
+                if _price_ok(vv): c.append(vv)
+            vv = _to_int(pr.get("price"))
+            if _price_ok(vv): c.append(vv)
+    return c
 
-    return sorted(set(cands))
-
-def _extract_price_candidates_from_ad(ad: Dict[str, Any]) -> List[int]:
-    """Fallback for Comfort Inn cases that show under 'ads[]'."""
-    cands: List[int] = []
+def _cands_from_ad(ad: Dict[str, Any]) -> List[int]:
+    c: List[int] = []
     for k in ("extracted_price", "price"):
-        v = _clean_int(ad.get(k))
-        if _price_ok(v): cands.append(v)
-    return sorted(set(cands))
+        v = _to_int(ad.get(k))
+        if _price_ok(v): c.append(v)
+    return c
 
-# ---------- find hotels in response ----------
-def _get_properties_list(data: Dict[str, Any]) -> List[Dict[str, Any]]:
-    props = data.get("properties")
-    if isinstance(props, list) and props: return props
-    props = data.get("hotel_results")
-    if isinstance(props, list) and props: return props
-    # extremely rare: hotels under organic_results
+def _get_properties(data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    for key in ("properties", "hotel_results"):
+        arr = data.get(key)
+        if isinstance(arr, list) and arr: return arr
     org = data.get("organic_results")
     if isinstance(org, list):
         hotels = [x for x in org if isinstance(x, dict) and x.get("type") == "hotel"]
         if hotels: return hotels
     return []
 
-def _get_ads_list(data: Dict[str, Any]) -> List[Dict[str, Any]]:
+def _get_ads(data: Dict[str, Any]) -> List[Dict[str, Any]]:
     ads = data.get("ads")
     return ads if isinstance(ads, list) else []
 
-def _pick_best_match(items: List[Dict[str, Any]], hotel_name: str, city: str, name_keys=("name","title")) -> Optional[Dict[str, Any]]:
-    # choose highest name score, but require city match in address
+def _best_match(items: List[Dict[str, Any]], hotel_name: str, city: str, name_keys=("name","title")) -> Optional[Dict[str, Any]]:
     best, best_score = None, 0.0
     for it in items:
         nm = ""
@@ -117,13 +112,9 @@ def _pick_best_match(items: List[Dict[str, Any]], hotel_name: str, city: str, na
         sc = _score(nm, hotel_name)
         if sc > best_score:
             best, best_score = it, sc
-    if not best:
-        return None
-
-    # Address / location sanity (properties use 'formatted_address'/'address', ads don't always have one)
+    if not best: return None
     addr = (best.get("formatted_address") or best.get("address") or "")
     if addr and not _city_in(addr, city):
-        # try next-best that DOES match the city
         ranked = sorted(
             [(it, _score((it.get("name") or it.get("title") or "").strip(), hotel_name)) for it in items],
             key=lambda x: x[1], reverse=True
@@ -135,8 +126,8 @@ def _pick_best_match(items: List[Dict[str, Any]], hotel_name: str, city: str, na
         return None
     return best
 
-# ---------- main fetch ----------
-def fetch_min_rate_for_hotel(
+# ---------- main ----------
+def fetch_rate_range_for_hotel(
     hotel_name: str,
     address: str,
     city: str,
@@ -148,12 +139,12 @@ def fetch_min_rate_for_hotel(
     currency: str = "USD",
     timeout_s: float = 25.0,
     retries: int = 2,
-) -> Optional[int]:
+) -> Optional[Dict[str, int | str]]:
     if not SERPAPI_KEY:
         print(f"[MISS] {hotel_name} {checkin} -> SERPAPI_KEY missing")
         return None
 
-    def _query(q: str, tag: str) -> Optional[int]:
+    def _query(q: str, tag: str) -> Optional[Dict[str, int | str]]:
         params = {
             "engine": "google_hotels",
             "q": q,
@@ -165,6 +156,7 @@ def fetch_min_rate_for_hotel(
             "hl": hl,
             "api_key": SERPAPI_KEY,
         }
+
         body = ""
         for attempt in range(retries + 1):
             try:
@@ -187,48 +179,38 @@ def fetch_min_rate_for_hotel(
             print(f"[MISS] {hotel_name} {checkin} -> SerpAPI error: {data.get('error')} ({tag})")
             return None
 
-        # 1) Try properties[] first (Best Western, Courtyard, Country Inn return here)
-        props = _get_properties_list(data)
+        candidates: List[int] = []
+        source_bits: List[str] = []
+
+        # Properties
+        props = _get_properties(data)
         if props:
-            pr = _pick_best_match(props, hotel_name, city, ("name","title"))
+            pr = _best_match(props, hotel_name, city, ("name","title"))
             if pr:
-                cands = _extract_price_candidates_from_property(pr)
-                if cands:
-                    price = min(cands)
-                    print(f"[OK]   {hotel_name} {checkin} -> ${price} ({tag}/properties)")
-                    return price
-                else:
-                    nm = (pr.get("name") or pr.get("title") or "").strip()
-                    print(f"[MISS] {hotel_name} {checkin} -> matched '{nm}' but no price fields ({tag}/properties)")
-            else:
-                # show some context
-                head = "; ".join([(x.get("name") or x.get("title") or "").strip() for x in props[:3]])
-                print(f"[MISS] {hotel_name} {checkin} -> no city/name match in properties. Top: {head} ({tag})")
+                got = _cands_from_property(pr)
+                if got:
+                    candidates += got
+                    source_bits.append("properties")
 
-        # 2) Fall back to ads[] (Comfort Inn often appears here with extracted_price)
-        ads = _get_ads_list(data)
+        # Ads
+        ads = _get_ads(data)
         if ads:
-            ad = _pick_best_match(ads, hotel_name, city, ("name","title"))
+            ad = _best_match(ads, hotel_name, city, ("name","title"))
             if ad:
-                cands = _extract_price_candidates_from_ad(ad)
-                if cands:
-                    price = min(cands)
-                    print(f"[OK]   {hotel_name} {checkin} -> ${price} ({tag}/ads)")
-                    return price
-                else:
-                    nm = (ad.get("name") or ad.get("title") or "").strip()
-                    print(f"[MISS] {hotel_name} {checkin} -> matched ad '{nm}' but no ad price fields ({tag})")
-            else:
-                head = "; ".join([(x.get("name") or x.get("title") or "").strip() for x in ads[:3]])
-                print(f"[MISS] {hotel_name} {checkin} -> no city/name match in ads. Top: {head} ({tag})")
+                got = _cands_from_ad(ad)
+                if got:
+                    candidates += got
+                    source_bits.append("ads")
 
-        print(f"[MISS] {hotel_name} {checkin} -> no usable price fields in response ({tag})")
-        return None
+        candidates = sorted(set([v for v in candidates if _price_ok(v)]))
+        if not candidates:
+            print(f"[MISS] {hotel_name} {checkin} -> no usable price fields ({tag})")
+            return None
 
-    # Primary: brand + full address (precise)
-    price = _query(f"{hotel_name}, {address}", "addr")
-    if price is not None:
-        return price
+        return {"low": candidates[0], "high": candidates[-1], "source": "|".join(source_bits) or "unknown"}
 
-    # Fallback: brand + city (less strict; helps if address formatting differs)
+    # precise, then relaxed
+    res = _query(f"{hotel_name}, {address}", "addr")
+    if res is not None:
+        return res
     return _query(f"{hotel_name}, {city}", "city")
