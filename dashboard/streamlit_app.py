@@ -7,7 +7,7 @@ import pytz
 
 st.set_page_config(page_title="Beckley Competitor Rate Tracker", page_icon="📝")
 st.title("📝 Beckley Hotel Rate Tracker")
-st.write("Monitoring rates for selected Beckley properties.")
+st.write("Monitoring rates for selected Beckley properties (primary = public refundable before-tax nightly when available).")
 
 APP_DIR = Path(__file__).resolve().parent
 REPO_ROOT = APP_DIR.parent
@@ -59,7 +59,7 @@ generated_at = payload.get("generated_at")
 if rates_by_day: st.success(f"✅ Loaded local rates ({DATA_PATH.relative_to(REPO_ROOT)})")
 if generated_at: st.caption(f"Data generated at: {generated_at}")
 
-rates = rates_by_day.get(selected_label, {})
+data_for_day = rates_by_day.get(selected_label, {})
 
 hotels = [
     "Courtyard Beckley",
@@ -71,52 +71,53 @@ hotels = [
     YOUR_HOTEL,
 ]
 
-def to_range(v):
-    """Accepts either an int (old format) or {'low':..,'high':..} (new). Returns (low, high) or (None, None)."""
-    if isinstance(v, dict) and "low" in v and "high" in v:
-        return v["low"], v["high"]
+def primary_price(entry):
+    if isinstance(entry, dict) and "primary" in entry and entry["primary"]:
+        return entry["primary"].get("price")
     try:
-        iv = int(v)
-        return iv, iv
+        return int(entry)  # backward compat
     except:
-        return None, None
+        return None
 
-def midpoint(low, high):
-    if low is None or high is None: return None
-    return (int(low) + int(high)) // 2
+def ranges_text(entry):
+    if not isinstance(entry, dict): return None
+    rngs = entry.get("ranges") or {}
+    parts = []
+    for key in ("public_refundable", "public_nonrefundable", "member_refundable", "member_nonrefundable"):
+        r = rngs.get(key)
+        if r:
+            low, high = r.get("low"), r.get("high")
+            parts.append(f"{key.replace('_',' ')}: ${low}" + ("" if low==high else f"–${high}"))
+    return " | ".join(parts) if parts else None
 
-your_low, your_high = to_range(rates.get(YOUR_HOTEL))
-your_mid = midpoint(your_low, your_high)
+your_primary = primary_price(data_for_day.get(YOUR_HOTEL))
 
 st.subheader(f"📍 Beckley, WV — {selected_label} ({checkin_date.strftime('%A, %b %d')})")
 
 rows = []
 chart_hotels, chart_vals = [], []
 for hotel in hotels:
-    low, high = to_range(rates.get(hotel))
-    show_rate = "N/A"
-    if low is not None and high is not None:
-        show_rate = f"${low}" if low == high else f"${low}–${high}"
-    delta = "—" if hotel == YOUR_HOTEL else (
-        f"{(midpoint(low, high) - your_mid):+}" if (midpoint(low, high) is not None and your_mid is not None) else "N/A"
-    )
+    entry = data_for_day.get(hotel)
+    p = primary_price(entry)
+    delta = "—" if hotel == YOUR_HOTEL else (f"{p - your_primary:+}" if (p is not None and your_primary is not None) else "N/A")
+    detail = ranges_text(entry)
     rows.append({
         "Hotel": hotel,
         "Check-in": checkin_date.strftime("%A, %b %d"),
-        "Rate": show_rate,
-        "Δ vs You (midpoint)": delta
+        "Primary": f"${p}" if isinstance(p, int) else "N/A",
+        "Δ vs You": delta,
+        "Details": detail or ""
     })
-    m = midpoint(low, high)
-    if m is not None:
+    if p is not None:
         chart_hotels.append(hotel)
-        chart_vals.append(m)
+        chart_vals.append(p)
 
 df = pd.DataFrame(rows)
 st.dataframe(df, use_container_width=True)
 
-st.subheader("📊 Rate Comparison Chart (midpoints)")
+st.subheader("📊 Comparison (Primary rates)")
 if chart_vals:
-    chart_df = pd.DataFrame({"Hotel": chart_hotels, "Rate (midpoint)": chart_vals})
+    chart_df = pd.DataFrame({"Hotel": chart_hotels, "Primary Rate": chart_vals})
     st.bar_chart(chart_df.set_index("Hotel"))
 else:
-    st.info("No numeric ranges available to chart for this date.")
+    st.info("No numeric primary rates available to chart for this date.")
