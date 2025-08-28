@@ -231,7 +231,8 @@ def fetch_brand_categorized_for_hotel(
       {
         "primary": {"price": 144, "category": "public_refundable", "basis":"nightly", "source":"properties|ads"},
         "ranges": { "public_refundable": {"low":..., "high":...}, ... },
-        "brand_strict": true/false   # whether primary honored brand-only filter
+        "brand_strict": true/false,
+        "debug": { "provider_ctx": "...", "picked_from": "ads|properties", "raw_file": "..." }
       }
     """
     if not SERPAPI_KEY:
@@ -251,6 +252,7 @@ def fetch_brand_categorized_for_hotel(
             "api_key": SERPAPI_KEY,
         }
 
+        raw_used = ""
         body = ""
         for attempt in range(retries + 1):
             try:
@@ -266,7 +268,8 @@ def fetch_brand_categorized_for_hotel(
                     return None
 
         p_ok = _save_raw(hotel_name, checkin, body, f"{tag}_ok")
-        print(f"[RAW]  {hotel_name} {checkin} -> {p_ok.name}")
+        raw_used = p_ok.name
+        print(f"[RAW]  {hotel_name} {checkin} -> {raw_used}")
 
         data = r.json()
         offers: List[Dict[str, Any]] = []
@@ -293,10 +296,28 @@ def fetch_brand_categorized_for_hotel(
         brand_offers = [o for o in offers if _is_brand_provider(o.get("provider_ctx",""), brand)] if brand else offers
         primary = _pick_brand_public_refundable_primary(cats_all, brand_offers)
 
+        # Build ranges from brand-filtered offers if brand specified, else from all
         ranges = _summarize_ranges(_categorize(brand_offers)) if brand else _summarize_ranges(cats_all)
-        brand_strict = bool(brand)
 
-        return {"primary": primary, "ranges": ranges, "brand_strict": brand_strict}
+        # Attach debug breadcrumb (provider context + source + raw filename)
+        debug: Dict[str, Any] = {"raw_file": raw_used}
+        if primary:
+            match = None
+            pool = brand_offers if brand else offers
+            for o in pool:
+                if o.get("price") == primary["price"] and (o.get("source") == primary.get("source")):
+                    match = o
+                    break
+            if match:
+                debug["provider_ctx"] = match.get("provider_ctx")
+                debug["picked_from"] = match.get("source")
+
+        return {
+            "primary": primary,
+            "ranges": ranges,
+            "brand_strict": bool(brand),
+            "debug": debug
+        }
 
     # precise then relaxed
     res = _query(f"{hotel_name}, {address}", "addr")
