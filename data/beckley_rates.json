@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-29T05:49:01.273345Z",
+  "generated_at": "2026-03-30T06:04:52.997916Z",
   "rates_by_day": {
     "Today": {
       "Comfort Inn Beckley": {
@@ -12,41 +12,18 @@
         "ranges": {
           "public_refundable": {
             "low": 114,
-            "high": 138
+            "high": 135
           }
         },
         "expedia": null,
         "brand_strict": true,
         "debug": {
-          "raw_file": "Comfort_Inn_Beckley_2026-03-29_addr_ok_20260329T054744Z.json",
+          "raw_file": "Comfort_Inn_Beckley_2026-03-30_addr_ok_20260330T060353Z.json",
           "provider_ctx": "Comfort Inn Beckley",
           "picked_from": "properties"
         }
       },
       "Courtyard Beckley": {
-        "primary": {
-          "price": 139,
-          "category": "public_refundable",
-          "basis": "nightly",
-          "source": "properties"
-        },
-        "ranges": {
-          "public_refundable": {
-            "low": 139,
-            "high": 157
-          }
-        },
-        "expedia": null,
-        "brand_strict": false,
-        "debug": {
-          "raw_file": "Courtyard_Beckley_2026-03-29_addr_ok_20260329T054746Z.json",
-          "provider_ctx": "Straightforward hotel offering contemporary rooms & a courtyard with a fire pit, plus free WiFi. | Courtyard by Marriott Beckley",
-          "picked_from": "properties"
-        }
-      },
-      "Hampton Inn Beckley": "N/A",
-      "Tru by Hilton Beckley": "N/A",
-      "Fairfield Inn Beckley": {
         "primary": {
           "price": 149,
           "category": "public_refundable",
@@ -56,79 +33,13 @@
         "ranges": {
           "public_refundable": {
             "low": 149,
-            "high": 167
+            "high": 168
           }
         },
         "expedia": null,
         "brand_strict": false,
         "debug": {
-          "raw_file": "Fairfield_Inn_Beckley_2026-03-29_addr_ok_20260329T054758Z.json",
-          "provider_ctx": "Fairfield by Marriott Inn & Suites Beckley",
-          "picked_from": "properties"
-        }
-      },
-      "Best Western Beckley": "N/A",
-      "Country Inn Beckley": {
-        "primary": {
-          "price": 90,
-          "category": "public_refundable",
-          "basis": "nightly",
-          "source": "properties"
-        },
-        "ranges": {
-          "public_refundable": {
-            "low": 90,
-            "high": 100
-          }
-        },
-        "expedia": null,
-        "brand_strict": false,
-        "debug": {
-          "raw_file": "Country_Inn_Beckley_2026-03-29_city_ok_20260329T054810Z.json",
-          "provider_ctx": "Unfussy hotel offering free hot breakfast & Wi-Fi, plus an indoor/outdoor pool & an exercise room. | Country Inn & Suites by Radisson, Beckley, WV",
-          "picked_from": "properties"
-        }
-      }
-    },
-    "Tomorrow": {
-      "Comfort Inn Beckley": {
-        "primary": {
-          "price": 107,
-          "category": "public_refundable",
-          "basis": "nightly",
-          "source": "properties"
-        },
-        "ranges": {
-          "public_refundable": {
-            "low": 107,
-            "high": 133
-          }
-        },
-        "expedia": null,
-        "brand_strict": true,
-        "debug": {
-          "raw_file": "Comfort_Inn_Beckley_2026-03-30_addr_ok_20260329T054812Z.json",
-          "provider_ctx": "Comfort Inn Beckley",
-          "picked_from": "properties"
-        }
-      },
-      "Courtyard Beckley": {
-        "primary": {
-          "price": 159,
-          "category": "public_refundable",
-          "basis": "nightly",
-          "source": "properties"
-        },
-        "ranges": {
-          "public_refundable": {
-            "low": 159,
-            "high": 180
-          }
-        },
-        "expedia": null,
-        "brand_strict": false,
-        "debug": {
-          "raw_file": "Courtyard_Beckley_2026-03-30_addr_ok_20260329T054814Z.json",
+          "raw_file": "Courtyard_Beckley_2026-03-30_addr_ok_20260330T060355Z.json",
           "provider_ctx": "Straightforward hotel offering contemporary rooms & a courtyard with a fire pit, plus free WiFi. | Courtyard by Marriott Beckley",
           "picked_from": "properties"
         }
@@ -151,7 +62,7 @@
         "expedia": null,
         "brand_strict": false,
         "debug": {
-          "raw_file": "Fairfield_Inn_Beckley_2026-03-30_addr_ok_20260329T054828Z.json",
+          "raw_file": "Fairfield_Inn_Beckley_2026-03-30_addr_ok_20260330T060404Z.json",
           "provider_ctx": "Fairfield by Marriott Inn & Suites Beckley",
           "picked_from": "properties"
         }
@@ -173,8 +84,97 @@
         "expedia": null,
         "brand_strict": false,
         "debug": {
-          "raw_file": "Country_Inn_Beckley_2026-03-30_city_ok_20260329T054839Z.json",
+          "raw_file": "Country_Inn_Beckley_2026-03-30_city_ok_20260330T060413Z.json",
           "provider_ctx": "Cozy Lil\u2019 Roost in Beckley",
+          "picked_from": "properties"
+        }
+      }
+    },
+    "Tomorrow": {
+      "Comfort Inn Beckley": {
+        "primary": {
+          "price": 122,
+          "category": "public_refundable",
+          "basis": "nightly",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 122,
+            "high": 141
+          }
+        },
+        "expedia": null,
+        "brand_strict": true,
+        "debug": {
+          "raw_file": "Comfort_Inn_Beckley_2026-03-31_addr_ok_20260330T060415Z.json",
+          "provider_ctx": "Comfort Inn Beckley",
+          "picked_from": "properties"
+        }
+      },
+      "Courtyard Beckley": {
+        "primary": {
+          "price": 149,
+          "category": "public_refundable",
+          "basis": "nightly",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 149,
+            "high": 168
+          }
+        },
+        "expedia": null,
+        "brand_strict": false,
+        "debug": {
+          "raw_file": "Courtyard_Beckley_2026-03-31_addr_ok_20260330T060418Z.json",
+          "provider_ctx": "Straightforward hotel offering contemporary rooms & a courtyard with a fire pit, plus free WiFi. | Courtyard by Marriott Beckley",
+          "picked_from": "properties"
+        }
+      },
+      "Hampton Inn Beckley": "N/A",
+      "Tru by Hilton Beckley": "N/A",
+      "Fairfield Inn Beckley": {
+        "primary": {
+          "price": 159,
+          "category": "public_refundable",
+          "basis": "nightly",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 159,
+            "high": 178
+          }
+        },
+        "expedia": null,
+        "brand_strict": false,
+        "debug": {
+          "raw_file": "Fairfield_Inn_Beckley_2026-03-31_addr_ok_20260330T060428Z.json",
+          "provider_ctx": "Fairfield by Marriott Inn & Suites Beckley",
+          "picked_from": "properties"
+        }
+      },
+      "Best Western Beckley": "N/A",
+      "Country Inn Beckley": {
+        "primary": {
+          "price": 96,
+          "category": "public_refundable",
+          "basis": "nightly",
+          "source": "properties"
+        },
+        "ranges": {
+          "public_refundable": {
+            "low": 96,
+            "high": 107
+          }
+        },
+        "expedia": null,
+        "brand_strict": false,
+        "debug": {
+          "raw_file": "Country_Inn_Beckley_2026-03-31_city_ok_20260330T060437Z.json",
+          "provider_ctx": "Unfussy hotel offering free hot breakfast & Wi-Fi, plus an indoor/outdoor pool & an exercise room. | Country Inn & Suites by Radisson, Beckley, WV",
           "picked_from": "properties"
         }
       }
@@ -182,42 +182,42 @@
     "Friday": {
       "Comfort Inn Beckley": {
         "primary": {
-          "price": 145,
+          "price": 154,
           "category": "public_refundable",
           "basis": "nightly",
           "source": "properties"
         },
         "ranges": {
           "public_refundable": {
-            "low": 145,
-            "high": 192
+            "low": 154,
+            "high": 173
           }
         },
         "expedia": null,
         "brand_strict": true,
         "debug": {
-          "raw_file": "Comfort_Inn_Beckley_2026-04-03_addr_ok_20260329T054840Z.json",
+          "raw_file": "Comfort_Inn_Beckley_2026-04-03_addr_ok_20260330T060439Z.json",
           "provider_ctx": "Comfort Inn Beckley",
           "picked_from": "properties"
         }
       },
       "Courtyard Beckley": {
         "primary": {
-          "price": 130,
+          "price": 169,
           "category": "public_refundable",
           "basis": "nightly",
           "source": "properties"
         },
         "ranges": {
           "public_refundable": {
-            "low": 130,
-            "high": 147
+            "low": 169,
+            "high": 191
           }
         },
         "expedia": null,
         "brand_strict": false,
         "debug": {
-          "raw_file": "Courtyard_Beckley_2026-04-03_addr_ok_20260329T054843Z.json",
+          "raw_file": "Courtyard_Beckley_2026-04-03_addr_ok_20260330T060440Z.json",
           "provider_ctx": "Straightforward hotel offering contemporary rooms & a courtyard with a fire pit, plus free WiFi. | Courtyard by Marriott Beckley",
           "picked_from": "properties"
         }
@@ -240,33 +240,13 @@
         "expedia": null,
         "brand_strict": false,
         "debug": {
-          "raw_file": "Fairfield_Inn_Beckley_2026-04-03_addr_ok_20260329T054852Z.json",
+          "raw_file": "Fairfield_Inn_Beckley_2026-04-03_addr_ok_20260330T060452Z.json",
           "provider_ctx": "Fairfield by Marriott Inn & Suites Beckley",
           "picked_from": "properties"
         }
       },
       "Best Western Beckley": "N/A",
-      "Country Inn Beckley": {
-        "primary": {
-          "price": 113,
-          "category": "public_refundable",
-          "basis": "nightly",
-          "source": "properties"
-        },
-        "ranges": {
-          "public_refundable": {
-            "low": 113,
-            "high": 127
-          }
-        },
-        "expedia": null,
-        "brand_strict": false,
-        "debug": {
-          "raw_file": "Country_Inn_Beckley_2026-04-03_city_ok_20260329T054901Z.json",
-          "provider_ctx": "Unfussy hotel offering free hot breakfast & Wi-Fi, plus an indoor/outdoor pool & an exercise room. | Country Inn & Suites by Radisson, Beckley, WV",
-          "picked_from": "properties"
-        }
-      }
+      "Country Inn Beckley": "N/A"
     }
   }
 }
